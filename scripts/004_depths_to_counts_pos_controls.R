@@ -13,7 +13,7 @@ library(splitstackshape)
 library(dplyr)
 
 
-middle_dir = "/Users/12705859/Desktop/metapigs_dry/middle_dir/"
+middle_dir = "/Users/12705859/metapigs_dry/middle_dir/"
 
 
 # upload input file

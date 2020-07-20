@@ -13,9 +13,9 @@ library(ggpubr)
 library(forcats)
 library(data.table)
 
-source_dir = "/Users/12705859/Desktop/metapigs_dry/source_data/" # git 
-middle_dir = "/Users/12705859/Desktop/metapigs_dry/middle_dir/" # git 
-out_dir_git = "/Users/12705859/Desktop/metapigs_dry/out/" # git 
+source_dir = "/Users/12705859/metapigs_dry/source_data/" # git 
+middle_dir = "/Users/12705859/metapigs_dry/middle_dir/" # git 
+out_dir_git = "/Users/12705859/metapigs_dry/out/" # git 
 out_dir = "/Users/12705859/Desktop/metapigs_dry/gtdbtk/"  # local
 
 ######################################################################
@@ -395,7 +395,7 @@ empty_df <- data.frame(
 )
 
 # save it
-fwrite(x=empty_df, file=paste0(out_dir,"gt_siamcat_cohortsbetween.csv"), sep = ",",
+fwrite(x=empty_df, file=paste0(out_dir_git,"gt_siamcat_cohortsbetween.csv"), sep = ",",
        append = FALSE)
 
 ######################################################################
@@ -426,7 +426,7 @@ comparebetween <- function(t,c2,c1) {
   mydata_cohorts_between$species <- rownames(mydata_cohorts_between)
   rownames(mydata_cohorts_between) <- NULL
   
-  fwrite(x=mydata_cohorts_between, file=paste0(out_dir,"gt_siamcat_cohortsbetween.csv"), sep = ",",
+  fwrite(x=mydata_cohorts_between, file=paste0(out_dir_git,"gt_siamcat_cohortsbetween.csv"), sep = ",",
          append = TRUE)
   
 }
@@ -468,12 +468,12 @@ comparebetween("t10","NeoC","Neomycin")
 ######################################################################
 
 # retrieve the significant hits from the data we just obtained 
-CohortsAssociations <- read_csv(paste0(out_dir,"gt_siamcat_cohortsbetween.csv"))
+CohortsAssociations <- read_csv(paste0(out_dir_git,"gt_siamcat_cohortsbetween.csv"))
 
 significant_between_cohorts <- CohortsAssociations %>%
   dplyr::filter(p.adj<=0.05) 
 
-fwrite(x=significant_between_cohorts, file=paste0(out_dir_git,"gt_siamcat_cohortsbetween_sign.csv"), sep = ",",
+fwrite(x=significant_between_cohorts, file=paste0(out_dir,"gt_siamcat_cohortsbetween_sign.csv"), sep = ",",
        append = FALSE)
 
 # how many associations found per each time intervals comparison

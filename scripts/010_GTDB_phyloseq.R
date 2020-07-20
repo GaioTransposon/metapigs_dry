@@ -16,9 +16,9 @@ library(openxlsx)
 library(purrr)
 
 
-source_dir = "/Users/12705859/Desktop/metapigs_dry/source_data/" # git 
-middle_dir = "/Users/12705859/Desktop/metapigs_dry/middle_dir/" # git 
-out_dir_git = "/Users/12705859/Desktop/metapigs_dry/out/" # git 
+source_dir = "/Users/12705859/metapigs_dry/source_data/" # git 
+middle_dir = "/Users/12705859/metapigs_dry/middle_dir/" # git 
+out_dir_git = "/Users/12705859/metapigs_dry/out/" # git 
 out_dir = "/Users/12705859/Desktop/metapigs_dry/gtdbtk/"  # local
 
 
@@ -1885,7 +1885,7 @@ dev.off()
 # normalization for library size 
 df1 <- df0 %>%
   dplyr::group_by(pig,date) %>% # a pig sample is: pig+date
-  dplyr::dplyr::mutate(norm_value=value/sum(value))    
+  dplyr::mutate(norm_value=value/sum(value))    
 head(df1)
 sort(unique(df1$species))
 

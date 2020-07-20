@@ -1,21 +1,37 @@
 
 ###########################################################################################
 
+library(readr)
+library(openxlsx)
 
-# open csv files from the out dir of the git repo
+
+out_dir_git = "/Users/12705859/metapigs_dry/out/"
 
 
-# create workbook 
+
+## 1. create workbook 
 wb <- createWorkbook()
 
 
-# save each csv file as a sheet of the workbook
+
+## 2. open csv and save as sheets of the workbook
+filenames <- list.files(out_dir_git, pattern="*.csv", full.names=TRUE)
+
+for (each_filename in filenames) {
+  
+  ldf <- lapply(each_filename, read.csv)
+  
+  clean_name <- gsub(".*out//\\s*|.csv.*", "", as.character(each_filename))
+  
+  addWorksheet(wb, clean_name)
+  writeData(wb, sheet = clean_name, ldf, rowNames = FALSE)
+  
+}
 
 
-
-# save workbook in out dir (git repo) 
-
-
+## 3. save workbook 
+saveWorkbook(wb, paste0(out_dir_git,"stats.xlsx"), overwrite=TRUE)
 
 
 ###########################################################################################
+

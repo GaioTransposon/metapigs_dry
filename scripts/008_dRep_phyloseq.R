@@ -19,8 +19,8 @@ library(FSA)
 library(openxlsx)
 
 
-source_dir = "/Users/12705859/Desktop/metapigs_dry/source_data/" # git 
-middle_dir = "/Users/12705859/Desktop/metapigs_dry/middle_dir/" # git 
+source_dir = "/Users/12705859/metapigs_dry/source_data/" # git 
+middle_dir = "/Users/12705859/metapigs_dry/middle_dir/" # git 
 out_dir = "/Users/12705859/Desktop/metapigs_dry/dRep/"  # local
 
 
@@ -59,7 +59,7 @@ NROW(no_reps_all)
 # load gtdbtk assignments of the bins
 
 # load gtdbtk assignments of the bins
-gtdbtk_bins <- read_csv(paste0(source_dir,"gtdb_bins_completeTaxa"),
+gtdbtk_bins <- read_csv(paste0(middle_dir,"gtdb_bins_completeTaxa"),
                         col_types = cols(node = col_character(),
                                          pig = col_character()))
 

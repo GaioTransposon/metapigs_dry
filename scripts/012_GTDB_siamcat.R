@@ -14,9 +14,9 @@ library(ggpubr)
 library(forcats)
 library(data.table)
 
-source_dir = "/Users/12705859/Desktop/metapigs_dry/source_data/" # git 
-middle_dir = "/Users/12705859/Desktop/metapigs_dry/middle_dir/" # git 
-out_dir_git = "/Users/12705859/Desktop/metapigs_dry/out/" # git 
+source_dir = "/Users/12705859/metapigs_dry/source_data/" # git 
+middle_dir = "/Users/12705859/metapigs_dry/middle_dir/" # git 
+out_dir_git = "/Users/12705859/metapigs_dry/out/" # git 
 out_dir = "/Users/12705859/Desktop/metapigs_dry/gtdbtk/"  # local
 
 ######################################################################
@@ -393,7 +393,7 @@ empty_df <- data.frame(
 )
 
 # save (now empty; to fill inside the loop)
-fwrite(x=empty_df, file = paste0(out_dir,"gt_siamcat_time.csv"), sep = ",", append = FALSE)
+fwrite(x=empty_df, file = paste0(out_dir_git,"gt_siamcat_time.csv"), sep = ",", append = FALSE)
 
 comparetimepoints_full <- function(t1,t2) { # where c is the cohort of interest, t0 is the start time point, t1 is the next time point)
   
@@ -424,7 +424,7 @@ comparetimepoints_full <- function(t1,t2) { # where c is the cohort of interest,
   mydata$species <- rownames(mydata)
   rownames(mydata) <- NULL
   
-  fwrite(x=mydata, file=paste0(out_dir,"gt_siamcat_time.csv"), sep = ",",
+  fwrite(x=mydata, file=paste0(out_dir_git,"gt_siamcat_time.csv"), sep = ",",
          append = TRUE)
   
   # Model building
@@ -483,7 +483,7 @@ comparetimepoints_full("t0","t8")
 ############################################################################################################################################
 
 # retrieve the associations we just obtained 
-TimeAssociations <- read_csv(paste0(out_dir,"gt_siamcat_time.csv"))
+TimeAssociations <- read_csv(paste0(out_dir_git,"gt_siamcat_time.csv"))
 
 # extract the significant hits
 significant_with_time <- TimeAssociations %>%
@@ -491,7 +491,7 @@ significant_with_time <- TimeAssociations %>%
   dplyr::filter(p.adj<=0.05) 
 
 # save
-fwrite(x=significant_with_time, file=paste0(out_dir_git,"gt_siamcat_time_sign.csv"), sep = ",",
+fwrite(x=significant_with_time, file=paste0(out_dir,"gt_siamcat_time_sign.csv"), sep = ",",
        append = FALSE)
 
 ###############################################################################
@@ -524,7 +524,7 @@ sink()
 
 ###### majorly shifting species with time - different plotting (1 plot for all sign shifts at any time interval)
 
-gt_siamcat_time_sign <- read_csv(paste0(out_dir_git,"gt_siamcat_time_sign.csv"))
+gt_siamcat_time_sign <- read_csv(paste0(out_dir,"gt_siamcat_time_sign.csv"))
 
 # some filtering and parse
 gt_siamcat_time_sign$comparison <- as.factor(gt_siamcat_time_sign$comparison)

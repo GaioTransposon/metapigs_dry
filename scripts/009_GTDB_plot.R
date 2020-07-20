@@ -11,8 +11,8 @@ library(robCompositions)
 library(ggbiplot)
 
 
-source_dir = "/Users/12705859/Desktop/metapigs_dry/source_data/" # git 
-middle_dir = "/Users/12705859/Desktop/metapigs_dry/middle_dir/" # git 
+source_dir = "/Users/12705859/metapigs_dry/source_data/" # git 
+middle_dir = "/Users/12705859/metapigs_dry/middle_dir/" # git 
 out_dir = "/Users/12705859/Desktop/metapigs_dry/gtdbtk/"  # local
 
 
@@ -162,7 +162,7 @@ genus_counts$label <- paste(paste(genus_counts$genus,
 genus_counts_most_ab <- genus_counts[1:50]
 
 
-pdf(paste0(out-dir,"gt_treemap_genus.pdf"))
+pdf(paste0(out_dir,"gt_treemap_genus.pdf"))
 # most abundant 
 treemap(genus_counts_most_ab, #Your data frame object
         index=c("order","label"),  #A list of your categorical variables

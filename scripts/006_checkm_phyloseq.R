@@ -11,7 +11,7 @@ library(ape)
 
 ######################################################################
 
-middle_dir = "/Users/12705859/Desktop/metapigs_dry/middle_dir/" # git 
+middle_dir = "/Users/12705859/metapigs_dry/middle_dir/" # git 
 out_dir = "/Users/12705859/Desktop/metapigs_dry/checkm/"  # local
 
 

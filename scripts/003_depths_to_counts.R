@@ -14,7 +14,7 @@ library(splitstackshape)
 library(dplyr)
 
 # PATHS
-middle_dir = "/Users/12705859/Desktop/metapigs_dry/middle_dir/"
+middle_dir = "/Users/12705859/metapigs_dry/middle_dir/"
 
 # input files: 
 # merged_all_clustered_wa_bins_with_cohorts.csv
@@ -93,7 +93,7 @@ NROW(total)
 # 1st de-replication (take mean out of replicates): 
 NL2$replicate <- NULL
 NROW(NL2)
-no_reps <- aggregate(NL2$value,by=list(cohort=NL2$cohort,
+no_reps <- stats::aggregate(NL2$value,by=list(cohort=NL2$cohort,
                                        pig=NL2$pig,bin=NL2$bin, 
                                        collection_date=NL2$collection_date,
                                        secondary_cluster=NL2$secondary_cluster),data=NL2,FUN=mean)
@@ -171,7 +171,7 @@ NROW(no_reps) == length(unique(no_reps$sampleID))
 NROW(no_reps) # 362863
 length(unique(no_reps$sampleID)) # 361054
 # here above we can see the amount of replicates (same pig, same date)
-no_reps2 <- aggregate(no_reps$value,by=list(cohort=no_reps$cohort,
+no_reps2 <- stats::aggregate(no_reps$value,by=list(cohort=no_reps$cohort,
                                             pig=no_reps$pig,
                                             bin=no_reps$bin,
                                             secondary_cluster=no_reps$secondary_cluster,

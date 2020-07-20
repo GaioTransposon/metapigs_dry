@@ -8,9 +8,9 @@ library(ggplot2)
 library(viridis)
 
 
-source_dir = "/Users/12705859/Desktop/metapigs_dry/source_data/" # git 
-middle_dir = "/Users/12705859/Desktop/metapigs_dry/middle_dir/" # git 
-out_dir_git = "/Users/12705859/Desktop/metapigs_dry/out/" # git 
+source_dir = "/Users/12705859/metapigs_dry/source_data/" # git 
+middle_dir = "/Users/12705859/metapigs_dry/middle_dir/" # git 
+out_dir_git = "/Users/12705859/metapigs_dry/out/" # git 
 out_dir = "/Users/12705859/Desktop/metapigs_dry/gtdbtk/"  # local
 
 
