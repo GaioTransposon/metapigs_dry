@@ -14,20 +14,28 @@ library(treemapify)
 library(ggrepel)
 library(factoextra)
 library(stringr)
+library(zip)
 
 
-setwd("~/Desktop/metapigs_dry/dbcan")
-basedir = "~/Desktop/metapigs_dry/"
+source_dir = "/Users/12705859/metapigs_dry/source_data/" # git 
+middle_dir = "/Users/12705859/metapigs_dry/middle_dir/" # git 
+out_dir_git = "/Users/12705859/metapigs_dry/out/" # git 
+out_dir = "/Users/12705859/Desktop/metapigs_dry/dbcan/"  # local
 
-########################
+######################################################################
 
-# load dbcan_diamond data (output of mapping our-bins-AAs against CAZy db)
-hmmer <- read_table2("hmmer.out", col_names = FALSE)
+# load dbcan_hmmer data (output of mapping our-bins-AAs against CAZy db)
+
+## First extract
+tmp2 <- tempfile()
+unzip(zipfile=paste0(middle_dir,"hmmer.out.zip"), exdir = tmp2)
+
+hmmer <- read_table2(paste0(tmp2,"/hmmer.out"), col_names = FALSE)
 
 ########################
 
 # load gtdbtk assignments of the bins
-gtdbtk_bins <- read_csv(paste0(basedir,"gtdbtk/gtdbtk_bins_completeTaxa"),
+gtdbtk_bins <- read_csv(paste0(middle_dir,"gtdb_bins_completeTaxa"),
                         col_types = cols(node = col_character(),
                                          pig = col_character()))
 
@@ -35,7 +43,7 @@ gtdbtk_bins <- read_csv(paste0(basedir,"gtdbtk/gtdbtk_bins_completeTaxa"),
 
 # counts data 
 
-no_reps_all <- read.csv(paste0(basedir,"no_reps_all.csv"), 
+no_reps_all <- read.csv(paste0(middle_dir,"no_reps_all.csv"), 
                         na.strings=c("","NA"),
                         check.names = FALSE,
                         header = TRUE)
@@ -49,7 +57,7 @@ NROW(no_reps_all)
 ########################
 
 # load checkM assignments of the bins
-checkm_all_nearly <- read_delim(paste0(basedir,"checkm/checkm_all_nearly"), 
+checkm_all_nearly <- read_delim(paste0(middle_dir,"checkm_all_nearly"), 
                                 "\t", escape_double = FALSE, col_types = cols(pigid = col_character()), 
                                 trim_ws = TRUE)
 
@@ -59,10 +67,11 @@ checkm_all_nearly <- read_delim(paste0(basedir,"checkm/checkm_all_nearly"),
 
 # PART 1
 
-head(hmmer)
-colnames(hmmer)
 
-# hmmer data cleaning 
+##########################################################
+
+
+# HMMER data cleaning 
 
 # remove .hmm from enzyme ID
 hmmer <- cSplit(hmmer,"X1",".")
@@ -75,10 +84,8 @@ hmmer$enzymeID <- hmmer$X1_1_1
 
 # extra enzyme ID - suffixes together 
 hmmer <- hmmer  %>%
-  mutate_at(c('X1_1_2', 'X1_1_3','X1_1_4','X1_1_5'), ~str_replace_na(., "")) %>%
-  mutate(combo_var = paste0(X1_1_2,".", X1_1_3,".",X1_1_4,".",X1_1_5))
-
-unique(hmmer$enzymeID)
+  dplyr::mutate_at(c('X1_1_2', 'X1_1_3','X1_1_4','X1_1_5'), ~str_replace_na(., "")) %>%
+  dplyr::mutate(combo_var = paste0(X1_1_2,".", X1_1_3,".",X1_1_4,".",X1_1_5))
 
 # subject/bin/contig
 hmmer <- cSplit(hmmer,"X3","_")
@@ -113,11 +120,14 @@ hmmer$bin <- gsub(".fa","", hmmer$bin)
 
 head(hmmer)
 
-########################################################################
+##########################################################
 
-# QUALITY of hmmer data : 
+
+# QUALITY of hmmer data 
+
+
 # how well our predicted proteins - matched against the CAZy database 
-sink(file="dbcan_HMMER_numbers.txt", append=FALSE)
+sink(file=paste0(out_dir,"dbcan_HMMER_numbers.txt"), append=FALSE)
 paste0("total number of proteins matching the CAZy db with dbcan-hmmer")
 NROW(hmmer)
 paste0("total number of unique enzymeIDs with dbcan-hmmer")
@@ -130,14 +140,11 @@ paste0("e-values")
 hmmer %>%
   group_by(enzymeNAME) %>%
   tally() %>%
-  mutate(perc=n/sum(n))
+  dplyr::mutate(perc=n/sum(n))
 sink()
 
 
 # re-rder enzymes to follow the same aesthetics as Stewart et al 2019
-unique(hmmer$enzymeNAME)
-levels(hmmer$enzymeNAME)
-
 hmmer$enzymeNAME <- as.character(hmmer$enzymeNAME)
 hmmer$enzymeNAME  = factor(
   hmmer$enzymeNAME, levels=c("AA",
@@ -174,117 +181,26 @@ hmmer_perc_identity_plot <- hmmer %>%
 enzymes_proportion <- hmmer %>% 
   group_by(enzymeNAME) %>% 
   tally() %>%
-  mutate(perc = paste0(round(n/sum(n)*100,2),"%"))
+  dplyr::mutate(perc = paste0(round(n/sum(n)*100,2),"%"))
 
 hmmer_perc_identity_plot <- hmmer_perc_identity_plot + 
   geom_text(data = enzymes_proportion,
             aes(enzymeNAME, 0, label = perc), vjust="inward",size=2)
 
-pdf("dbcan_HMMER_perc_identity.pdf")
+pdf(paste0(out_dir,"dbcan_HMMER_identity.pdf"))
 hmmer_perc_identity_plot
 dev.off()
 
-########################################################################
 
-# # clean checkM all nearly data:
-# 
-# # filter >90 <5 bins 
-# checkm_all_nearly <- dplyr::filter(checkm_all_nearly, !grepl("Completeness",Completeness))
-# checkm_all_nearly <- subset(checkm_all_nearly, Completeness >= 90 & Contamination <= 5)
-# # some formatting 
-# checkm_all_nearly$Completeness <- as.numeric(checkm_all_nearly$Completeness)
-# checkm_all_nearly$Contamination <- as.numeric(checkm_all_nearly$Contamination)
-# # rename cols to matching colnames between dataframes to merge  
-# colnames(checkm_all_nearly)[colnames(checkm_all_nearly)=="pigid"] <- "pig"
-# colnames(checkm_all_nearly)[colnames(checkm_all_nearly)=="Bin Id"] <- "bin"
-# colnames(checkm_all_nearly)[colnames(checkm_all_nearly)=="Taxonomy (contained)"] <- "taxa"
-# 
-# checkm_clean <- checkm_all_nearly %>%
-#   select(pig,bin,taxa)
-# checkm_clean <- cSplit(checkm_clean, "taxa", sep=";")
-# colnames(checkm_clean) <- c("pig","bin","kingdom","phylum","class","order","family","genus","species")
-# head(checkm_clean)
-# 
-# checkm_clean$phylum <- as.character(checkm_clean$phylum)
-# checkm_clean$phylum[is.na(checkm_clean$phylum)] <- "Unknown"
-# 
-# checkm_clean$phylum <- gsub("p__","", checkm_clean$phylum)
-# 
-# ########################################################################
-# 
-# # merge diamond data with checkM- nearly complete bins - taxonomic assignments 
-# 
-# NROW(checkm_clean)
-# NROW(hmmer)
-# 
-# cm_hmmer <- inner_join(checkm_clean,hmmer)
-# NROW(cm_hmmer)
-# 
-# 
-# cm_hmmer_taxa <- cm_hmmer %>%
-#   group_by(phylum,enzymeNAME) %>%
-#   tally() %>%
-#   mutate(Proportion = n) 
-# 
-# cm_hmmer_prop <- cm_hmmer %>%
-#   group_by(phylum) %>%
-#   tally() %>%
-#   mutate(proportion=n/sum(n)*100)
-# 
-# a <- ggplot(cm_hmmer_prop, aes(y=proportion, x=phylum)) + 
-#   geom_bar(position="dodge", lwd=0.1,stat="identity",colour="black",fill="snow3")+ #lightskyblue happier
-#   theme(axis.text.x=element_text(angle=90))+
-#   theme_pubr()+
-#   ylab("Proportion of CAZymes (%)")+
-#   theme(axis.title.x = element_blank(),
-#         axis.text.x = element_blank())
-# b <- ggplot(cm_hmmer_taxa, aes(fill=enzymeNAME, y=Proportion, x=phylum)) + 
-#   geom_bar(position="fill", lwd=0.1,stat="identity",colour="black")+
-#   theme(axis.text.x=element_text(angle=90))+
-#   scale_fill_brewer(palette="Spectral")+
-#   theme_pubr()+
-#   theme(axis.text.x=element_text(angle=45,hjust=1),
-#         axis.title.x = element_blank(),
-#         legend.position="right",
-#         legend.title = element_blank())
-# 
-# # RColorBrewer::display.brewer.all(n=8,select = "Spectral")
-# 
-# CAZ_HMMER_CMphyla_plot <- plot_grid(
-#   plot_grid(
-#     a + theme(legend.position = "none"),
-#     b + theme(legend.position = "none"),
-#     ncol = 1,
-#     align = "v"),
-#   plot_grid(
-#     get_legend(a),
-#     get_legend(b),
-#     ncol =1),
-#   rel_widths = c(8,2)
-# )
-# 
-# pdf("dbcan_HMMER_CAZ_CMphyla.pdf")
-# CAZ_HMMER_CMphyla_plot
-# dev.off()
-# 
-# 
-# # perc identity plot + phyla distr plot in one
-# pdf("dbcan_HMMER_CAZ_PercID_Phyla.pdf", width=7,height=5)
-# plot_grid(hmmer_perc_identity_plot,
-#           CAZ_HMMER_GTphyla_plot,
-#           nrow=1,ncol=2,
-#           rel_width=c(4,6),
-#           labels=c("A","B"))
-# dev.off()
+##########################################################
 
-########################################################################
 
-# merge diamond data with gtdbtk- bins taxonomic assignments 
+# CAZy enzymes (HMMER) distribution over (GTDB) phyla
 
 
 NROW(gtdbtk_bins)
 NROW(hmmer)
-
+# merge gtdbtk- bins taxonomic assignments with hmmer data
 gt_hmmer <- inner_join(gtdbtk_bins,hmmer)
 NROW(gt_hmmer)
 
@@ -293,12 +209,12 @@ gt_hmmer$phylum[is.na(gt_hmmer$phylum)] <- "Unknown"
 gt_hmmer_taxa <- gt_hmmer %>%
   group_by(phylum,enzymeNAME) %>%
   tally() %>%
-  mutate(Proportion = n) 
+  dplyr::mutate(Proportion = n) 
 
 gt_hmmer_prop <- gt_hmmer %>%
   group_by(phylum) %>%
   tally() %>%
-  mutate(proportion=n/sum(n)*100)
+  dplyr::mutate(proportion=n/sum(n)*100)
 
 a_gt <- ggplot(gt_hmmer_prop, aes(y=proportion, x=phylum)) + 
   geom_bar(position="dodge", stat="identity",colour="black",fill="snow3")+ #lightskyblue happier
@@ -320,7 +236,6 @@ b_gt <- ggplot(gt_hmmer_taxa, aes(fill=enzymeNAME, y=Proportion, x=phylum)) +
         legend.position="right",legend.text = element_text(size=8),
         legend.title = element_blank())
 
-
 CAZ_HMMER_GTphyla_plot <- plot_grid(
   plot_grid(
     a_gt + theme(legend.position = "none"),
@@ -336,10 +251,22 @@ CAZ_HMMER_GTphyla_plot <- plot_grid(
   rel_widths = c(8,2)
 )
 
-pdf("dbcan_HMMER_CAZ_GTphyla.pdf")
+pdf(paste0(out_dir,"dbcan_HMMER_GTphyla.pdf"))
 CAZ_HMMER_GTphyla_plot
 dev.off()
 
+
+##########################################################
+
+
+# HMMER enzymes quality (per identity) and distribution over GTDB phyla (1 figure)
+
+
+pdf(paste0(out_dir,"dbcan_HMMER_identity&phyla.pdf"))
+ggarrange(hmmer_perc_identity_plot,
+          CAZ_HMMER_GTphyla_plot,
+          ncol=2)
+dev.off()
 
 ##########################################################
 ##########################################################
@@ -348,30 +275,222 @@ dev.off()
 # PART 2
 
 
+##########################################################
+
+# Set aesthetics 
+
+
+# set defined colors (releveling )
+scale_fill_gaio8 <- function(...){
+  ggplot2:::manual_scale(
+    'fill', 
+    values = setNames(c("#D53E4F","#F46D43","#FDAE61","#FEE08B","#E6F598","#ABDDA4","#66C2A5","#3288BD"), 
+                      c("AA","CE","SLH","GH","GT","CBM","cohesin","PL")), 
+    ...
+  )
+}
+
+# levels(df_part$enzymeNAME)
+# brewer.pal(8, name="Spectral")
+
+
+
+##########################################################
+
+
+# PLOT showing all enzymes that significantly changed over time, 
+# with popularity (y) and "singularity" (x) 
+# meaning how uniquely an enzyme is expressed by one (right) or multiple (left) taxa
+# and how popuar among the pig population (top=popular; bottom=unpopular)
+
+CAZy_species_representation <- gt_hmmer %>% 
+  group_by(enzymeID,species) %>%
+  tally() %>%
+  group_by(enzymeID) %>%
+  dplyr::mutate(perc_spec=round(n/sum(n)*100,2)) %>%
+  drop_na() %>%
+  group_by(enzymeID) %>%
+  top_n(n=1,wt=perc_spec) %>%
+  dplyr::arrange(enzymeID) %>%
+  dplyr::mutate(top_species = perc_spec) %>%
+  dplyr::select(enzymeID, species, top_species) %>%
+  group_by(enzymeID) %>%
+  arrange(desc(top_species)) %>%
+  slice(1)
+
+head(CAZy_species_representation)
+tail(CAZy_species_representation)
+
+CAZy_prevalence_in_population <- gt_hmmer %>%
+  filter(!pig=="Protexin"&!pig=="ColiGuard"&!pig=="MockCommunity"&!pig=="NegativeControl") %>%
+  dplyr::select(pig,enzymeID, enzymeNAME) %>%
+  distinct() %>%
+  group_by(enzymeID, enzymeNAME) %>%
+  tally() %>%
+  dplyr::mutate(popularity = n) %>%
+  dplyr::select(enzymeID, enzymeNAME, popularity)
+
+head(CAZy_prevalence_in_population)
+tail(CAZy_prevalence_in_population)
+
+df <- full_join(CAZy_species_representation, CAZy_prevalence_in_population) %>% distinct()
+
+pdf(paste0(out_dir,"dbcan_HMMER_all_plot.pdf"))
+ggplot(df) +
+  geom_point(aes(top_species, popularity, fill=enzymeNAME), 
+             colour="black",pch=21, size=4)+
+  labs(x="percentage of top species",
+       y="prevalence in the pig population",
+       fill="enzyme class")+
+  scale_fill_gaio8()+
+  theme_bw(base_size = 10) +
+  xlim(0,130) +
+  ggrepel::geom_label_repel(data = subset(df, top_species > 55 & popularity > 5),
+                            aes(
+                              x = top_species,
+                              y = popularity,
+                              fill = factor(enzymeNAME),
+                              label = paste0(enzymeID,"\n",species)
+                            ),
+                            box.padding   = 0.3,label.padding = 0.1,
+                            point.padding = 0.5,alpha=0.7,
+                            force         = 10,
+                            segment.size  = 0.2,
+                            segment.color = "grey50", nudge_x = 30,
+                            direction     = "y", nudge_y = 10,
+                            size=2.5,
+                            color="black"
+  ) 
+dev.off()
+
+
+##########################################################
+
+
+# Some numbers for manuscript:
+
+
+# CE
+
+sink(file = paste0(out_dir,"dbcan_HMMER_numbers.txt"),append = TRUE)
+
+paste0(" ##############################  CE  ############################## ")
+paste0("number of all enzymeIDs within this class")
+NROW(subset(df, enzymeNAME == "CE")) 
+paste0("number of all enzymeIDs within this class, that are present in multiple species")
+NROW(subset(df, enzymeNAME == "CE" & top_species<25)) 
+CE_df <- df %>%
+  dplyr::filter(enzymeNAME=="CE") %>%
+  dplyr::filter(top_species<25) 
+summary(CE_df)
+
+paste0(" ##############################  PL  ############################## ")
+paste0("number of all enzymeIDs within this class")
+NROW(subset(df, enzymeNAME == "PL")) 
+paste0("number of all enzymeIDs within this class, that are present in multiple species")
+NROW(subset(df, enzymeNAME == "PL" & top_species<25)) 
+PL_df <- df %>%
+  dplyr::filter(enzymeNAME=="PL") %>%
+  dplyr::filter(top_species<25) 
+summary(PL_df)
+
+paste0(" ##############################  GT  ############################## ")
+paste0("number of all enzymeIDs within this class")
+NROW(subset(df, enzymeNAME == "GT")) 
+paste0("number of all enzymeIDs within this class, that are present in multiple species")
+NROW(subset(df, enzymeNAME == "GT" & top_species<25 & popularity >50)) 
+34*100/68
+GT_df <- df %>%
+  dplyr::filter(enzymeNAME=="GT") %>%
+  dplyr::filter(top_species<25) 
+summary(GT_df)
+
+paste0(" ##############################  GH  ############################## ")
+paste0("number of all enzymeIDs within this class")
+NROW(subset(df, enzymeNAME == "GH")) 
+paste0("number of all enzymeIDs within this class, that are present in multiple species")
+NROW(subset(df, enzymeNAME == "GH" & top_species<25 & popularity >50)) 
+94*100/128
+GH_df <- df %>%
+  dplyr::filter(enzymeNAME=="GH") %>%
+  dplyr::filter(top_species<25) 
+summary(GH_df)
+
+paste0(" ##############################  CBM  ############################## ")
+paste0("number of all enzymeIDs within this class")
+NROW(subset(df, enzymeNAME == "CBM")) 
+CBM_df <- df %>%
+  dplyr::filter(enzymeNAME=="CBM") 
+summary(CBM_df)
+
+paste0(" ##############################  AA  ############################## ")
+paste0("number of all enzymeIDs within this class")
+NROW(subset(df, enzymeNAME == "AA")) 
+AA_df <- df %>%
+  dplyr::filter(enzymeNAME=="AA") 
+AA_df
+summary(AA_df)
+
+paste0(" ##############################  cohesin  ############################## ")
+paste0("number of all enzymeIDs within this class")
+NROW(subset(df, enzymeNAME == "cohesin")) 
+cohesin_df <- df %>%
+  dplyr::filter(enzymeNAME=="cohesin") 
+cohesin_df
+
+paste0(" ##############################  SLH  ############################## ")
+paste0("number of all enzymeIDs within this class")
+NROW(subset(df, enzymeNAME == "SLH")) 
+SLH_df <- df %>%
+  dplyr::filter(enzymeNAME=="SLH") 
+SLH_df
+
+
+paste0(" ##############################  enzymes present majorly in one species ############################## ")
+rightmost <- df %>%
+  dplyr::filter(top_species>70) %>%
+  dplyr::filter(popularity>15) %>%
+  dplyr::arrange(desc(top_species))
+NROW(rightmost)
+rightmost$species
+rightmost$enzymeID
+sink()
+
+
+##########################################################
+##########################################################
+
+
+# PART 3
+
+
+##########################################################
+
+
+# Normalize for library size & test which enzymes significantly differ in abundance between time points 
+
+
 gt_hmmer <- as.data.frame(gt_hmmer)
 
 # normalize by lib size: 
 no_reps_all_norm <- no_reps_all %>%
   group_by(cohort,pig,date) %>%
-  mutate(norm_value=value/sum(value))
+  dplyr::mutate(norm_value=value/sum(value))
 
 hmmer_count <- hmmer %>%
   group_by(pig,bin,enzymeID,enzymeNAME)%>%
   dplyr::summarise(enz_count=n())
 
-
 df <- left_join(no_reps_all_norm,hmmer_count) 
 
-
 df1 <- df %>%
-  mutate(enz_countBYmap=norm_value*enz_count)
+  dplyr::mutate(enz_countBYmap=norm_value*enz_count)
 
 df1 <- df1[!is.na(df1$enzymeID),]
 
 df2 <- df1 %>%
   group_by(cohort,pig,date,enzymeID,enzymeNAME) %>%
   dplyr::summarise(norm_count=sum(enz_countBYmap))
-
 
 # reorder dates 
 df2$date  = factor(df2$date, levels=c("t0",
@@ -387,12 +506,10 @@ df2$date  = factor(df2$date, levels=c("t0",
                                       "t10",
                                       "tM"))
 
-
-
 df2 <- as.data.frame(df2)
 
 df_piggies <- df2 %>%
-  filter(!cohort=="Mothers")
+  dplyr::filter(!cohort=="Mothers")
 
 # split df by enzymeID
 multiple_DFs <- split( df_piggies , f = df_piggies$enzymeID ,drop = TRUE)
@@ -438,53 +555,73 @@ for (single_DF in multiple_DFs) {
 
 
 write.csv(all_pvalues,
-          "dbcan_HMMER_pvalues.csv", 
+          paste0(out_dir_git,"dbcan_HMMER_pvalues.csv"), 
           row.names = FALSE)
 
 significant <- all_pvalues %>%
-  filter(p_value<0.05) %>%
-  arrange(p_value)
+  dplyr::filter(p_value<0.05) %>%
+  dplyr::arrange(p_value)
 tail(significant)
 mylist <- unique(significant$enzID)
 
-sink(file="dbcan_HMMER_numbers.txt", append=TRUE)
+sink(file=paste0(out_dir,"dbcan_HMMER_numbers.txt"), append=TRUE)
 paste0("number of unique enzymes that showed a significant change between timepoints")
 NROW(unique(significant$enzID))
 sink()
 
 NROW(unique(hmmer$enzymeID)) # tot enzymes
 NROW(unique(significant$enzID)) # tot enzymes with significant diffs when comparing any time point
-##########################################################
-##########################################################
 
 
-# PART 3
+##########################################################
+
+###########
+# create column to specify if subject ID is mother or piglet 
+
+# create list of mother IDs
+moms_IDs <- no_reps_all %>%
+  dplyr::filter(date=="tM") %>%
+  dplyr::select(pig) %>%
+  distinct() %>%
+  mutate(is_mom="yes")
+
+# join list of mothers IDs to gt_hmmer
+gt_hmmer <- left_join(gt_hmmer,moms_IDs)
+gt_hmmer <- gt_hmmer %>% 
+  dplyr::mutate(is_mom = replace_na(is_mom, "no")) 
+###########
+
+piglets_with_enzyme <- gt_hmmer %>%
+  filter(!pig=="Protexin"&!pig=="ColiGuard"&!pig=="MockCommunity"&!pig=="NegativeControl") %>%
+  dplyr::filter(!is_mom=="yes") %>%
+  dplyr::select(pig,enzymeID, enzymeNAME) %>%
+  distinct() %>%
+  group_by(enzymeID, enzymeNAME) %>%
+  tally() %>%
+  dplyr::mutate(n_piggies=n) %>%
+  dplyr::select(enzymeID, n_piggies) 
+
+moms_with_enzyme <- gt_hmmer %>%
+  filter(!pig=="Protexin"&!pig=="ColiGuard"&!pig=="MockCommunity"&!pig=="NegativeControl") %>%
+  dplyr::filter(is_mom=="yes") %>%
+  dplyr::select(pig,enzymeID, enzymeNAME) %>%
+  distinct() %>%
+  group_by(enzymeID, enzymeNAME) %>%
+  tally() %>%
+  dplyr::mutate(n_moms=n) %>%
+  dplyr::select(enzymeID, n_moms) 
+  
+
+piglets_with_enzyme <- as.data.frame(piglets_with_enzyme)
+moms_with_enzyme <- as.data.frame(moms_with_enzyme)
+
+###########
 
 # now I will use these IDs to plot interesting stuff
 df_part <- subset(df2, (enzymeID %in% mylist))
 
 # renaming this column 
 colnames(df_part)[6] <- "tot"
-
-# getting a tally of number of piglets carrying each specific enzyme
-piglets_with_enzyme <- df_part %>%
-  filter(!date=="tM") %>%
-  ungroup() %>%
-  select(enzymeID,pig) %>%
-  distinct() %>%
-  group_by(enzymeID) %>%
-  tally() 
-
-# getting a tally of number of moms carrying each specific enzyme
-moms_with_enzyme <- df_part %>%
-  filter(date=="tM") %>%
-  ungroup() %>%
-  select(enzymeID,pig) %>%
-  distinct() %>%
-  group_by(enzymeID) %>%
-  tally() %>%
-  mutate(n_moms=n) %>%
-  dplyr::select(enzymeID,n_moms)
 
 df_part <- as.data.frame(inner_join(df_part,piglets_with_enzyme))
 df_part <- as.data.frame(inner_join(df_part,moms_with_enzyme))
@@ -499,35 +636,22 @@ df_part$enzymeNAME  = factor(
                                "cohesin",
                                "PL"))
 
-# set defined colors (releveling )
-scale_fill_gaio8 <- function(...){
-  ggplot2:::manual_scale(
-    'fill', 
-    values = setNames(c("#D53E4F","#F46D43","#FDAE61","#FEE08B","#E6F598","#ABDDA4","#66C2A5","#3288BD"), 
-                      c("AA","CE","SLH","GH","GT","CBM","cohesin","PL")), 
-    ...
-  )
-}
-
-# levels(df_part$enzymeNAME)
-# brewer.pal(8, name="Spectral")
 
 # put df rows in order of list (list is ordered by p-value (descending))
 require(gdata)
 df_part$enzymeID <- reorder.factor(df_part$enzymeID, new.order=mylist)
 df_part <- df_part %>%
-  arrange(enzymeID)
-# now they are plotted in order of significance! 
+  dplyr::arrange(enzymeID)
+# now they are plotted in order of significance!
 # that means that the first pages will be most interesting
-# 
 
-## commented this chunk out as redudant with the ones below, 
-## however this one is nicer (larger) 
-# pdf("dbcan_HMMER_CAZ_time_boxplots.pdf")
+# ## commented this chunk out as redudant with the ones below,
+# ## however this one is nicer (larger)
+# pdf(paste0(out_dir,"dbcan_HMMER_time_boxplots.pdf"))
 # for (i in seq(1, length(mylist), 12)) {    # can also use: length(unique(df_part$enzymeID))
-#   
-#   print(ggplot(df_part[df_part$enzymeID %in% mylist[i:(i+11)], ], 
-#                aes(date, log(tot),fill=enzymeNAME)) + 
+# 
+#   print(ggplot(df_part[df_part$enzymeID %in% mylist[i:(i+11)], ],
+#                aes(date, log(tot),fill=enzymeNAME)) +
 #           geom_boxplot(outlier.size = 1) +
 #           facet_wrap(~ enzymeID, scales = "free_y") +
 #           theme_bw()+
@@ -536,13 +660,13 @@ df_part <- df_part %>%
 #                 axis.text.y=element_text(size = 4),
 #                 axis.ticks.length.y = unit(.05, "cm"),
 #                 axis.text.x=element_text(size=6))+
-#           geom_text(aes(x="t1", y=max(log(tot)), label=paste0("n=(",n,")")),
+#           geom_text(aes(x="t1", y=max(log(tot)), label=paste0("n=(",n_piggies,")")),
 #                     size=2,colour="black", inherit.aes=TRUE, parse=FALSE,check_overlap = TRUE)+
 #           geom_text(aes(x="t10", y=max(log(tot)), label=paste0("n=(",n_moms,")")),
 #                     size=2,colour="black", inherit.aes=TRUE, parse=FALSE,check_overlap = TRUE))
 # }
 # dev.off()
-# 
+
 
 ##########################################################
 
@@ -621,61 +745,69 @@ df_part_cohesin <- subset(df_part_cohesin, (enzymeID %in% list_cohesin))
 
 
 ######
+
 # get species count for each enzymeID and make subsets of the data 
+# formula is the same as the one used before, except the top_n(1), 
+# as we need the full profile of proportions and not just the top 1 
 
-t <- gt_hmmer %>%
-  dplyr::select(pig,enzymeID,enzymeNAME,species,family) %>%   # dplyr::select(pig,contig,enzymeID,enzymeNAME,species,family) %>%
-  distinct() %>%
-  group_by(pig,enzymeID,species) %>%
-  add_tally() %>%
-  group_by(enzymeNAME,enzymeID,species) %>%
-  dplyr::summarise(n_sum_species=sum(n)) %>%
-  mutate(perc_species=round(n_sum_species/sum(n_sum_species)*100,2)) %>% 
-  drop_na()
-s <- as.data.frame(t)
+species <- gt_hmmer %>% 
+  group_by(enzymeID,species) %>%
+  tally() %>%
+  group_by(enzymeID) %>%
+  dplyr::mutate(perc_spec=round(n/sum(n)*100,2)) %>%
+  drop_na() %>%
+  group_by(enzymeID) %>%
+  top_n(n=3,wt=perc_spec) %>%
+  dplyr::select(enzymeID, species, perc_spec) %>% 
+  group_by(enzymeID) %>%
+  arrange(desc(perc_spec)) %>%
+  slice(1:3)
+species <- as.data.frame(species)
 
-t_genus <- gt_hmmer %>%
-  dplyr::select(pig,enzymeID,enzymeNAME,genus,family) %>%   # dplyr::select(pig,contig,enzymeID,enzymeNAME,species,family) %>%
-  distinct() %>%
-  group_by(pig,enzymeID,genus) %>%
-  add_tally() %>%
-  group_by(enzymeNAME,enzymeID,genus) %>%
-  dplyr::summarise(n_sum_genus=sum(n)) %>%
-  mutate(perc_genus=round(n_sum_genus/sum(n_sum_genus)*100,2)) %>% 
-  drop_na()
-s_genus <- as.data.frame(t_genus)
-
+genus <- gt_hmmer %>% 
+  group_by(enzymeID,genus) %>%
+  tally() %>%
+  group_by(enzymeID) %>%
+  dplyr::mutate(perc_genus=round(n/sum(n)*100,2)) %>%
+  drop_na() %>%
+  group_by(enzymeID) %>%
+  top_n(n=3,wt=perc_genus) %>%
+  dplyr::select(enzymeID, genus, perc_genus) %>% 
+  group_by(enzymeID) %>%
+  arrange(desc(perc_genus)) %>%
+  slice(1:3)
+genus <- as.data.frame(genus)
 
 # subsets (species)
-s_part1_GH <- subset(s, (enzymeID %in% list_GH_1))
-s_part2_GH <- subset(s, (enzymeID %in% list_GH_2))
-s_part3_GH <- subset(s, (enzymeID %in% list_GH_3))
-s_part4_GH <- subset(s, (enzymeID %in% list_GH_4))
-s_part1_GT <- subset(s, (enzymeID %in% list_GT_1))
-s_part2_GT <- subset(s, (enzymeID %in% list_GT_2))
-s_part3_GT <- subset(s, (enzymeID %in% list_GT_3))
-s_part1_CBM <- subset(s, (enzymeID %in% list_CBM_1))
-s_part2_CBM <- subset(s, (enzymeID %in% list_CBM_2))
-s_part_AA_CE <- subset(s, (enzymeID %in% list_AA_CE))
-s_part_PL <- subset(s, (enzymeID %in% list_PL))
-s_part_SLH <- subset(s, (enzymeID %in% list_SLH))
-s_part_cohesin <- subset(s, (enzymeID %in% list_cohesin))
+s_part1_GH <- subset(species, (enzymeID %in% list_GH_1))
+s_part2_GH <- subset(species, (enzymeID %in% list_GH_2))
+s_part3_GH <- subset(species, (enzymeID %in% list_GH_3))
+s_part4_GH <- subset(species, (enzymeID %in% list_GH_4))
+s_part1_GT <- subset(species, (enzymeID %in% list_GT_1))
+s_part2_GT <- subset(species, (enzymeID %in% list_GT_2))
+s_part3_GT <- subset(species, (enzymeID %in% list_GT_3))
+s_part1_CBM <- subset(species, (enzymeID %in% list_CBM_1))
+s_part2_CBM <- subset(species, (enzymeID %in% list_CBM_2))
+s_part_AA_CE <- subset(species, (enzymeID %in% list_AA_CE))
+s_part_PL <- subset(species, (enzymeID %in% list_PL))
+s_part_SLH <- subset(species, (enzymeID %in% list_SLH))
+s_part_cohesin <- subset(species, (enzymeID %in% list_cohesin))
 ######
 
 # subsets (genus)
-s_genus_part1_GH <- subset(s_genus, (enzymeID %in% list_GH_1))
-s_genus_part2_GH <- subset(s_genus, (enzymeID %in% list_GH_2))
-s_genus_part3_GH <- subset(s_genus, (enzymeID %in% list_GH_3))
-s_genus_part4_GH <- subset(s_genus, (enzymeID %in% list_GH_4))
-s_genus_part1_GT <- subset(s_genus, (enzymeID %in% list_GT_1))
-s_genus_part2_GT <- subset(s_genus, (enzymeID %in% list_GT_2))
-s_genus_part3_GT <- subset(s_genus, (enzymeID %in% list_GT_3))
-s_genus_part1_CBM <- subset(s_genus, (enzymeID %in% list_CBM_1))
-s_genus_part2_CBM <- subset(s_genus, (enzymeID %in% list_CBM_2))
-s_genus_part_AA_CE <- subset(s_genus, (enzymeID %in% list_AA_CE))
-s_genus_part_PL <- subset(s_genus, (enzymeID %in% list_PL))
-s_genus_part_SLH <- subset(s_genus, (enzymeID %in% list_SLH))
-s_genus_part_cohesin <- subset(s_genus, (enzymeID %in% list_cohesin))
+s_genus_part1_GH <- subset(genus, (enzymeID %in% list_GH_1))
+s_genus_part2_GH <- subset(genus, (enzymeID %in% list_GH_2))
+s_genus_part3_GH <- subset(genus, (enzymeID %in% list_GH_3))
+s_genus_part4_GH <- subset(genus, (enzymeID %in% list_GH_4))
+s_genus_part1_GT <- subset(genus, (enzymeID %in% list_GT_1))
+s_genus_part2_GT <- subset(genus, (enzymeID %in% list_GT_2))
+s_genus_part3_GT <- subset(genus, (enzymeID %in% list_GT_3))
+s_genus_part1_CBM <- subset(genus, (enzymeID %in% list_CBM_1))
+s_genus_part2_CBM <- subset(genus, (enzymeID %in% list_CBM_2))
+s_genus_part_AA_CE <- subset(genus, (enzymeID %in% list_AA_CE))
+s_genus_part_PL <- subset(genus, (enzymeID %in% list_PL))
+s_genus_part_SLH <- subset(genus, (enzymeID %in% list_SLH))
+s_genus_part_cohesin <- subset(genus, (enzymeID %in% list_cohesin))
 ######
 
 ##########################################################
@@ -685,15 +817,17 @@ s_genus_part_cohesin <- subset(s_genus, (enzymeID %in% list_cohesin))
 # PART 4
 
 
+##########################################################
+
 # # function for making enzyme heatmaps (whole large heatmap)
 # make_enzyme_heatmap <- function(x) {
 #   p <- x %>%
-#     filter(date=="t0"|date=="t2"|date=="t4"|date=="t6"|date=="t8"|date=="t10"|date=="tM") %>%
+#     dplyr::filter(date=="t0"|date=="t2"|date=="t4"|date=="t6"|date=="t8"|date=="t10"|date=="tM") %>%
 #     group_by(pig, enzymeID, date) %>%
 #     dplyr::summarise(tot = mean(tot, na.rm = TRUE)) %>%
 #     group_by(enzymeID) %>%
-#     mutate(tot = tot/max(tot)) %>%
-#     ungroup() %>%
+#     dplyr::mutate(tot = tot/max(tot)) %>%
+#     dplyr::ungroup() %>%
 #     ggplot(aes(x = factor(pig), y = reorder(enzymeID, tot, FUN = mean), fill = tot)) +
 #     geom_tile() +
 #     #scale_fill_gaio8()+
@@ -706,28 +840,30 @@ s_genus_part_cohesin <- subset(s_genus, (enzymeID %in% list_cohesin))
 #   return(p)
 # }
 
-# # function for making species heatmaps 
+# # # function for making species heatmaps
 # make_species_heatmap <- function(species_df,CAZ_heatmap) {
-#   
-#   CAZ_order_vector <- CAZ_heatmap$data %>% group_by(enzymeID) %>% dplyr::summarise(mean=mean(tot)) %>% 
+# 
+#   CAZ_order_vector <- CAZ_heatmap$data %>% 
+#     group_by(enzymeID) %>% 
+#     dplyr::summarise(mean=mean(tot)) %>%
 #     group_by(enzymeID) %>%
-#     arrange(desc(mean))
-#   
-#   g <- species_df %>% 
-#     group_by(enzymeID,species) %>% 
-#     dplyr::summarise(n_sum_species = mean(n_sum_species, na.rm = TRUE)) %>% 
+#     dplyr::arrange(desc(mean))
+# 
+#   g <- species_df %>%
+#     group_by(enzymeID,species) %>%
+#     dplyr::summarise(n_sum_species = mean(n_sum_species, na.rm = TRUE)) %>%
 #     group_by(enzymeID) %>%
-#     mutate(n_sum_species = n_sum_species/sum(n_sum_species)) %>%
+#     dplyr::mutate(n_sum_species = n_sum_species/sum(n_sum_species)) %>%
 #     top_n(n = 4, wt = n_sum_species) %>%
-#     arrange(desc(n)) %>%
-#     slice(1:4) %>%
-#     pivot_wider(names_from = enzymeID,values_from=n_sum_species) %>% 
+#     dplyr::arrange(desc(n)) %>%
+#     dplyr::slice(1:4) %>%
+#     pivot_wider(names_from = enzymeID,values_from=n_sum_species) %>%
 #     pivot_longer(cols=-species,names_to="enzymeID",values_to = "n_sum_species",values_drop_na = FALSE) %>%
-#     ungroup() 
-#   
+#     ungroup()
+# 
 #   #require(gdata)
 #   g$enzymeID <- reorder.factor(g$enzymeID, new.order=CAZ_order_vector$enzymeID)
-#   
+# 
 #   p <- ggplot(g, aes(x = reorder(enzymeID, n_sum_species, FUN = mean), y = species, fill = n_sum_species)) +
 #     geom_tile(size = 0.5, color = "black") +
 #     #scale_fill_gaio8()+
@@ -740,7 +876,7 @@ s_genus_part_cohesin <- subset(s_genus, (enzymeID %in% list_cohesin))
 #           axis.title.x=element_blank(),
 #           axis.title.y=element_blank())
 #   #scale_y_discrete(labels=function(x){sub("\\s", "\n", x)})
-#   
+# 
 #   return(p)
 # }
 
@@ -748,16 +884,11 @@ s_genus_part_cohesin <- subset(s_genus, (enzymeID %in% list_cohesin))
 make_species_CAZ_plots <- function(x) {
   
   p <- x %>% 
-    group_by(enzymeID) %>%
-    top_n(n = 3, wt = perc_species) %>%
-    arrange(desc(perc_species)) %>%
-    slice(1:3) %>%
-    drop.levels() %>% 
-    ggplot(aes(x = reorder(enzymeID, perc_species, FUN = mean), y = reorder(species, perc_species, FUN = mean), fill = perc_species)) +
+    ggplot(aes(x = reorder(enzymeID, perc_spec, FUN = mean), y = reorder(species, perc_spec, FUN = mean), fill = perc_spec)) +
     geom_tile() +
     #scale_fill_gaio8()+
     scale_fill_distiller(type = "div", palette = "Spectral") +
-    geom_text(aes(y=species,label=round(perc_species)), size=2)+
+    geom_text(aes(y=species,label=round(perc_spec)), size=2)+
     facet_wrap(~enzymeID, scales = "free",ncol = 3)+
     theme(axis.title.x=element_blank(),axis.text.x = element_blank(),
           axis.text.y=element_text(size=5),
@@ -780,15 +911,11 @@ make_species_CAZ_plots <- function(x) {
 }
 
 
-# function for making top n genus plots (per enzymeID) 
+# function for making top n genus plots (per enzymeID)  
+# WARNING (does not keep the same order of plots as make_enzyme_boxplots function below)
 make_genus_CAZ_plots <- function(x) {
   
   p <- x %>% 
-    group_by(enzymeID) %>%
-    top_n(n = 3, wt = perc_genus) %>%
-    arrange(desc(perc_genus)) %>%
-    slice(1:3) %>%
-    drop.levels() %>% 
     ggplot(aes(x = reorder(enzymeID, perc_genus, FUN = mean), y = reorder(genus, perc_genus, FUN = mean), fill = perc_genus)) +
     geom_tile() +
     #scale_fill_gaio8()+
@@ -821,11 +948,11 @@ make_genus_CAZ_plots <- function(x) {
 make_enzyme_boxplots <- function(x) {
   
   p <- x %>% 
-    filter(date=="t0"|date=="t2"|date=="t4"|date=="t6"|date=="t8"|date=="t10"|date=="tM") %>%
-    group_by(pig, enzymeID, enzymeNAME,date,n,n_moms) %>% 
+    dplyr::filter(date=="t0"|date=="t2"|date=="t4"|date=="t6"|date=="t8"|date=="t10"|date=="tM") %>%
+    group_by(pig, enzymeID, enzymeNAME,date,n_piggies,n_moms) %>% 
     dplyr::summarise(tot = mean(tot, na.rm = TRUE)) %>% 
-    mutate(tot=log(tot)) %>%
-    arrange(desc(enzymeID)) %>%
+    dplyr::mutate(tot=log(tot)) %>%
+    dplyr::arrange(desc(enzymeID)) %>%
     drop.levels() %>%
     ggplot(., aes(x = date, y = tot, fill = enzymeNAME)) +
     geom_boxplot(lwd=0.1, outlier.size = 0.2)+
@@ -838,7 +965,7 @@ make_enzyme_boxplots <- function(x) {
           axis.text.y=element_text(size = 4),
           axis.ticks.length.y = unit(.05, "cm"),
           axis.text.x=element_text(size=6,angle=90))+
-    geom_text(aes(x="ss_piglets",y=Inf, label=paste0("n=",n)),
+    geom_text(aes(x="ss_piglets",y=Inf, label=paste0("n=",n_piggies)),
               size=2.3,colour="black", hjust = 1.5, angle=90, inherit.aes=TRUE, parse=FALSE,check_overlap = TRUE)+
     geom_text(aes(x="ss_sows",y=Inf, label=paste0("n=",n_moms)),
               size=2.3,colour="black", hjust = 1.5, angle=90, inherit.aes=TRUE, parse=FALSE,check_overlap = TRUE)
@@ -1006,7 +1133,7 @@ g_SLH_cohesin <- plot_grid(a_SLH_cohesin,
 
 
 
-# pdf("dbcan_HMMER_CAZ_time_heatmaps.pdf")
+# pdf("dbcan_HMMER_time_heatmaps.pdf")
 # h_a_AA_CE 
 # h_a_PL 
 # h_a_GT_1 
@@ -1021,7 +1148,7 @@ g_SLH_cohesin <- plot_grid(a_SLH_cohesin,
 # h_a_cohesin
 # dev.off()
 # 
-# pdf("dbcan_CAZ_ALL_heatmaps.pdf")
+# pdf("dbcan_ALL_heatmaps.pdf")
 # H1
 # H2
 # H3
@@ -1036,7 +1163,7 @@ g_SLH_cohesin <- plot_grid(a_SLH_cohesin,
 # H12
 # dev.off()
 
-pdf("dbcan_HMMER_CAZ_time_species.pdf")
+pdf(paste0(out_dir,"dbcan_HMMER_time_species.pdf"))
 AA_CE
 PL
 CBM1
@@ -1053,7 +1180,7 @@ GH4
 SLH_cohesin
 dev.off()
 
-pdf("dbcan_HMMER_CAZ_time_genus.pdf")
+pdf(paste0(out_dir,"dbcan_HMMER_time_genus.pdf"))
 g_AA_CE
 g_PL
 g_CBM1
@@ -1072,162 +1199,14 @@ dev.off()
 
 
 
+##########################################################
+##########################################################
 
 
-
-# PLOT showing all enzymes that significantly changed over time, 
-# with popularity (y) and "singularity" (x) meaning how uniquely an enzyme is expressed by one (right) or multiple (left) taxa
-
-CAZy_species_representation <- gt_hmmer %>% 
-  group_by(enzymeID,species) %>%
-  tally() %>%
-  group_by(enzymeID) %>%
-  dplyr::mutate(perc_spec=round(n/sum(n)*100,2)) %>%
-  drop_na() %>%
-  group_by(enzymeID) %>%
-  top_n(n=1,wt=perc_spec) %>%
-  arrange(enzymeID) %>%
-  dplyr::mutate(top_species = perc_spec) %>%
-  dplyr::select(enzymeID, species, top_species)
-
-head(CAZy_species_representation)
-tail(CAZy_species_representation)
-
-CAZy_prevalence_in_population <- gt_hmmer %>%
-  filter(!pig=="Protexin"&!pig=="ColiGuard"&!pig=="MockCommunity"&!pig=="NegativeControl") %>%
-  dplyr::select(pig,enzymeID, enzymeNAME) %>%
-  distinct() %>%
-  group_by(enzymeID, enzymeNAME) %>%
-  tally() %>%
-  dplyr::mutate(popularity = n) %>%
-  dplyr::select(enzymeID, enzymeNAME, popularity)
-
-head(CAZy_prevalence_in_population)
-tail(CAZy_prevalence_in_population)
-
-df <- full_join(CAZy_species_representation, CAZy_prevalence_in_population) %>% distinct()
-
-pdf("dbcan_HMMER_all_CAZ_plot.pdf")
-ggplot(df) +
-  geom_point(aes(top_species, popularity, fill=enzymeNAME), 
-             colour="black",pch=21, size=4)+
-  labs(x="percentage of top species",
-       y="prevalence in the pig population",
-       fill="enzyme class")+
-  scale_fill_gaio8()+
-  theme_bw(base_size = 10) +
-  xlim(0,130) +
-  ggrepel::geom_label_repel(data = subset(df, top_species > 55 & popularity > 5),
-                            aes(
-                              x = top_species,
-                              y = popularity,
-                              fill = factor(enzymeNAME),
-                              label = paste0(enzymeID,"\n",species)
-                            ),
-                            box.padding   = 0.3,label.padding = 0.1,
-                            point.padding = 0.5,alpha=0.7,
-                            force         = 10,
-                            segment.size  = 0.2,
-                            segment.color = "grey50", nudge_x = 30,
-                            direction     = "y", nudge_y = 10,
-                            size=2.5,
-                            color="black"
-  ) 
-dev.off()
+# PART 5
 
 
-
-# EDIT THIS BELOW WITH NEW DF ("BOTH")
-
-
-# CE
-
-sink(file = "dbcan_HMMER_numbers.text",append = TRUE)
-
-paste0(" ##############################  CE  ############################## ")
-paste0("number of all enzymeIDs within this class")
-NROW(subset(df, enzymeNAME == "CE")) 
-paste0("number of all enzymeIDs within this class, that are present in multiple species")
-NROW(subset(df, enzymeNAME == "CE" & top_species<25)) 
-CE_df <- df %>%
-  filter(enzymeNAME=="CE") %>%
-  filter(top_species<25) 
-summary(CE_df)
-
-paste0(" ##############################  PL  ############################## ")
-paste0("number of all enzymeIDs within this class")
-NROW(subset(df, enzymeNAME == "PL")) 
-paste0("number of all enzymeIDs within this class, that are present in multiple species")
-NROW(subset(df, enzymeNAME == "PL" & top_species<25)) 
-PL_df <- df %>%
-  filter(enzymeNAME=="PL") %>%
-  filter(top_species<25) 
-summary(PL_df)
-
-paste0(" ##############################  GT  ############################## ")
-paste0("number of all enzymeIDs within this class")
-NROW(subset(df, enzymeNAME == "GT")) 
-paste0("number of all enzymeIDs within this class, that are present in multiple species")
-NROW(subset(df, enzymeNAME == "GT" & top_species<25 & popularity >50)) 
-34*100/68
-GT_df <- df %>%
-  filter(enzymeNAME=="GT") %>%
-  filter(top_species<25) 
-summary(GT_df)
-
-paste0(" ##############################  GH  ############################## ")
-paste0("number of all enzymeIDs within this class")
-NROW(subset(df, enzymeNAME == "GH")) 
-paste0("number of all enzymeIDs within this class, that are present in multiple species")
-NROW(subset(df, enzymeNAME == "GH" & top_species<25 & popularity >50)) 
-94*100/128
-GH_df <- df %>%
-  filter(enzymeNAME=="GH") %>%
-  filter(top_species<25) 
-summary(GH_df)
-
-paste0(" ##############################  CBM  ############################## ")
-paste0("number of all enzymeIDs within this class")
-NROW(subset(df, enzymeNAME == "CBM")) 
-CBM_df <- df %>%
-  filter(enzymeNAME=="CBM") 
-summary(CBM_df)
-
-paste0(" ##############################  AA  ############################## ")
-paste0("number of all enzymeIDs within this class")
-NROW(subset(df, enzymeNAME == "AA")) 
-AA_df <- df %>%
-  filter(enzymeNAME=="AA") 
-AA_df
-summary(AA_df)
-
-paste0(" ##############################  cohesin  ############################## ")
-paste0("number of all enzymeIDs within this class")
-NROW(subset(df, enzymeNAME == "cohesin")) 
-cohesin_df <- df %>%
-  filter(enzymeNAME=="cohesin") 
-cohesin_df
-
-
-
-paste0(" ##############################  SLH  ############################## ")
-paste0("number of all enzymeIDs within this class")
-NROW(subset(df, enzymeNAME == "SLH")) 
-SLH_df <- df %>%
-  filter(enzymeNAME=="SLH") 
-SLH_df
-
-
-paste0(" ##############################  enzymes present majorly in one species ############################## ")
-rightmost <- df %>%
-  filter(top_species>70) %>%
-  filter(popularity>15) %>%
-  arrange(desc(top_species))
-NROW(rightmost)
-rightmost$species
-rightmost$enzymeID
-sink()
-
+##########################################################
 
 
 # Prevotella vs Bacteroidetes enzyme specificity
@@ -1249,7 +1228,7 @@ test <- subset(df_part, (enzymeID %in% mylist))
 
 
 gt_hmmer_sub <- gt_hmmer %>% 
-  filter(genus=="Prevotella"|genus=="Bacteroides_A"|genus=="Bacteroides"|genus=="Bacteroides_B") 
+  dplyr::filter(genus=="Prevotella"|genus=="Bacteroides_A"|genus=="Bacteroides"|genus=="Bacteroides_B") 
 
 # reorder  
 gt_hmmer_sub$genus  = factor(gt_hmmer_sub$genus, levels=c("Bacteroides_A",
@@ -1260,9 +1239,9 @@ gt_hmmer_sub$genus  = factor(gt_hmmer_sub$genus, levels=c("Bacteroides_A",
 
 # all Bact. and Prev
 test2 <- gt_hmmer_sub %>% 
-  filter(genus=="Prevotella"|genus=="Bacteroides_A"|genus=="Bacteroides"|genus=="Bacteroides_B") %>%
+  dplyr::filter(genus=="Prevotella"|genus=="Bacteroides_A"|genus=="Bacteroides"|genus=="Bacteroides_B") %>%
   dplyr::select(genus,enzymeID) %>%
-  distinct()
+  dplyr::distinct()
 test4 <- inner_join(test,test2, by="enzymeID")
 NROW(test4)
 test4$sample=paste0(".",test4$genus,"__",test4$sample)
@@ -1302,9 +1281,9 @@ p1 <- p1 + theme(legend.position="none")
 
 # only Bact.A and Prev
 test2 <- gt_hmmer_sub %>% 
-  filter(genus=="Prevotella"|genus=="Bacteroides_A") %>%
+  dplyr::filter(genus=="Prevotella"|genus=="Bacteroides_A") %>%
   dplyr::select(genus,enzymeID) %>%
-  distinct()
+  dplyr::distinct()
 test4 <- inner_join(test,test2, by="enzymeID")
 NROW(test4)
 test4$sample=paste0(".",test4$genus,"__",test4$sample)
@@ -1363,262 +1342,285 @@ p23 <- ggarrange(p2,p3,
 tosave <- ggarrange(p1,p23, widths = c(1,3))
 tosave <- ggarrange(myleg,tosave,heights=c(1,9),nrow=2)
 
-pdf("dbcan_HMMER_specificity_genera.pdf")
+pdf(paste0(out_dir,"dbcan_HMMER_specificity_genera.pdf"))
 tosave
 dev.off()
 
 
 ##################################
 
-# ENZYMES CO-OCCURRENCE in the same GENUS - piglets 
+# # ENZYMES CO-OCCURRENCE in the same GENUS - piglets 
+# 
+# z <- gt_hmmer %>% dplyr::select(enzymeID,pig,genus)
+# piggiesIDs <- no_reps_all %>% 
+#   dplyr::filter(!cohort=="Mothers") %>% 
+#   dplyr::select(pig) %>% 
+#   dplyr::distinct()
+# 
+# # collect mothers enzyme info only 
+# z_piggies <- left_join(piggiesIDs,z)
+# 
+# z1 <- z_piggies %>% 
+#   group_by(genus,enzymeID) %>% 
+#   tally() 
+# 
+# z2 <- z_piggies %>% group_by(enzymeID) %>% tally() 
+# 
+# # set limits 
+# firstQu <- as.numeric(summary(z2$n)[2])
+# median <- as.numeric(summary(z2$n)[3])
+# thirdQu <- as.numeric(summary(z2$n)[5])
+# 
+# # PLOT 
+# pdf(paste0(out_dir,"dbcan_HMMER_occurr_piglets_same_genus.pdf"))
+# # below 1st Qu.
+# z3 <- subset(z2,n < firstQu)
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
+#         main="Co-occurrence - Frequency: below 1st Qu.") 
+# # 1st Qu. - median
+# z3 <- subset(z2, n >= firstQu & n < median)
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
+#         main="Co-occurrence - Frequency: 1st Qu. - median") 
+# # median  - 3rd Qu. 
+# z3 <- subset(z2,n >= median & n < thirdQu)
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
+#         main="Co-occurrence - Frequency: median - 3rd Qu.") 
+# # above 3rd Qu. 
+# z3 <- subset(z2,n >= thirdQu)
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
+#         main="Co-occurrence - Frequency: above 3rd Qu.") 
+# # without any subsetting
+# z3 <- z2
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.06, cexCol=0.06,
+#         main="Co-occurrence - all") 
+# dev.off()
+# 
+# 
+# ##################################
+# 
+# # ENZYMES CO-OCCURRENCE in the same GENUS - mothers 
+# 
+# z <- gt_hmmer %>% 
+#   dplyr::select(enzymeID,pig,genus)
+# 
+# mothersIDs <- no_reps_all %>% 
+#   dplyr::filter(cohort=="Mothers") %>% 
+#   dplyr::select(pig) %>% 
+#   dplyr::distinct()
+# 
+# # collect mothers enzyme info only 
+# z_moms <- left_join(mothersIDs,z)
+# 
+# z1 <- z_moms %>% 
+#   group_by(genus,enzymeID) %>% 
+#   tally() 
+# 
+# z2 <- z_moms %>% group_by(enzymeID) %>% tally() 
+# 
+# # set limits 
+# firstQu <- as.numeric(summary(z2$n)[2])
+# median <- as.numeric(summary(z2$n)[3])
+# thirdQu <- as.numeric(summary(z2$n)[5])
+# 
+# # PLOT 
+# pdf(paste0(out_dir,"dbcan_HMMER_occurr_mothers_same_genus.pdf"))
+# # below 1st Qu.
+# z3 <- subset(z2,n < firstQu)
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
+#         main="Co-occurrence - Frequency: below 1st Qu.") 
+# # 1st Qu. - median
+# z3 <- subset(z2, n >= firstQu & n < median)
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
+#         main="Co-occurrence - Frequency: 1st Qu. - median") 
+# # median  - 3rd Qu. 
+# z3 <- subset(z2,n >= median & n < thirdQu)
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
+#         main="Co-occurrence - Frequency: median - 3rd Qu.") 
+# # above 3rd Qu. 
+# z3 <- subset(z2,n >= thirdQu)
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
+#         main="Co-occurrence - Frequency: above 3rd Qu.") 
+# # without any subsetting
+# z3 <- z2
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.06, cexCol=0.06,
+#         main="Co-occurrence - all")
+# dev.off()
+# 
+# ##################################
+# ##################################
+# 
+# # ENZYMES CO-OCCURRENCE in the same GENUS - mothers AND piglets 
+# 
+# z <- gt_hmmer %>% dplyr::select(enzymeID,pig,genus)
+# 
+# IDs <- no_reps_all %>% 
+#   dplyr::select(pig) %>% 
+#   distinct()
+# 
+# # collect mothers enzyme info only 
+# z <- left_join(IDs,z)
+# 
+# z1 <- z %>% 
+#   group_by(genus,enzymeID) %>% 
+#   tally() 
+# 
+# z2 <- z %>% 
+#   group_by(enzymeID) %>% 
+#   tally() 
+# 
+# # PLOT 
+# pdf(paste0(out_dir,"dbcan_HMMER_occurr_moms&piglets_same_genus.pdf"))
+# # without any subsetting
+# z3 <- z2
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.06, cexCol=0.06,
+#         main="Co-occurrence of CAZy enzymes in the same genus")
+# dev.off()
+# 
+# 
+# ##################################
+# ##################################
+# 
+# # ENZYMES CO-OCCURRENCE in the same SPECIES - mothers AND piglets 
+# 
+# z <- gt_hmmer %>% 
+#   dplyr::select(enzymeID,pig,species)
+# 
+# IDs <- no_reps_all %>% 
+#   dplyr::select(pig) %>% 
+#   dplyr::distinct()
+# 
+# # collect mothers enzyme info only 
+# z <- left_join(IDs,z)
+# 
+# z1 <- z %>% 
+#   group_by(species,enzymeID) %>% 
+#   tally() 
+# 
+# z2 <- z %>% 
+#   group_by(enzymeID) %>% 
+#   tally() 
+# 
+# # PLOT 
+# pdf(paste0(out_dir,"dbcan_HMMER_occurr_moms&piglets_same_species.pdf"))
+# # without any subsetting
+# z3 <- z2
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.06, cexCol=0.06,
+#         main="Co-occurrence of CAZy enzymes in the same species")
+# dev.off()
+# 
+# ##################################
+# ##################################
+# 
+# 
+# # ENZYMES CO-OCCURRENCE in the same subject 
+# 
+# # create an adjancy matrix: rows are species, columns are enzyme IDs
+# z <- gt_hmmer %>% 
+#   dplyr::select(enzymeID,pig)
+# 
+# 
+# z1 <- z %>% 
+#   group_by(pig,enzymeID) %>% 
+#   tally() 
+# 
+# z2 <- z %>% 
+#   group_by(enzymeID) %>% 
+#   tally() 
+# 
+# # set limits 
+# firstQu <- as.numeric(summary(z2$n)[2])
+# median <- as.numeric(summary(z2$n)[3])
+# thirdQu <- as.numeric(summary(z2$n)[5])
+# 
+# # PLOT 
+# pdf(paste0(out_dir,"dbcan_HMMER_occurr_same_host.pdf"))
+# # below 1st Qu.
+# z3 <- subset(z2,n < firstQu)
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
+#         main="Co-occurrence - Frequency: below 1st Qu.") 
+# # 1st Qu. - median
+# z3 <- subset(z2, n >= firstQu & n < median)
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
+#         main="Co-occurrence - Frequency: 1st Qu. - median") 
+# # median  - 3rd Qu. 
+# z3 <- subset(z2,n >= median & n < thirdQu)
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
+#         main="Co-occurrence - Frequency: median - 3rd Qu.") 
+# # above 3rd Qu. 
+# z3 <- subset(z2,n >= thirdQu)
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
+#         main="Co-occurrence - Frequency: above 3rd Qu.") 
+# # without any subsetting
+# z3 <- z2
+# thelist <- as.character(z3$enzymeID)
+# z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
+# V <- crossprod(table(z1_sub[1:2]))
+# heatmap(V, Rowv = NULL,Colv=NULL,
+#         na.rm = TRUE, scale="none",cexRow = 0.06, cexCol=0.06,
+#         main="Co-occurrence of CAZy enzymes in the same host") 
+# dev.off()
 
-z <- gt_hmmer %>% dplyr::select(enzymeID,pig,genus)
-piggiesIDs <- no_reps_all %>% filter(!cohort=="Mothers") %>% dplyr::select(pig) %>% distinct()
-
-# collect mothers enzyme info only 
-z_piggies <- left_join(piggiesIDs,z)
-
-z1 <- z_piggies %>% 
-  group_by(genus,enzymeID) %>% 
-  tally() 
-
-z2 <- z_piggies %>% group_by(enzymeID) %>% tally() 
-
-# set limits 
-firstQu <- as.numeric(summary(z2$n)[2])
-median <- as.numeric(summary(z2$n)[3])
-thirdQu <- as.numeric(summary(z2$n)[5])
-
-# PLOT 
-pdf("dbcan_HMMER_occurr_piglets_same_genus.pdf")
-# below 1st Qu.
-z3 <- subset(z2,n < firstQu)
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
-        main="Co-occurrence - Frequency: below 1st Qu.") 
-# 1st Qu. - median
-z3 <- subset(z2, n >= firstQu & n < median)
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
-        main="Co-occurrence - Frequency: 1st Qu. - median") 
-# median  - 3rd Qu. 
-z3 <- subset(z2,n >= median & n < thirdQu)
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
-        main="Co-occurrence - Frequency: median - 3rd Qu.") 
-# above 3rd Qu. 
-z3 <- subset(z2,n >= thirdQu)
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
-        main="Co-occurrence - Frequency: above 3rd Qu.") 
-# without any subsetting
-z3 <- z2
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.06, cexCol=0.06,
-        main="Co-occurrence - all") 
-dev.off()
-
-
-##################################
-
-# ENZYMES CO-OCCURRENCE in the same GENUS - mothers 
-
-z <- gt_hmmer %>% dplyr::select(enzymeID,pig,genus)
-
-mothersIDs <- no_reps_all %>% filter(cohort=="Mothers") %>% dplyr::select(pig) %>% distinct()
-# collect mothers enzyme info only 
-z_moms <- left_join(mothersIDs,z)
-
-z1 <- z_moms %>% 
-  group_by(genus,enzymeID) %>% 
-  tally() 
-
-z2 <- z_moms %>% group_by(enzymeID) %>% tally() 
-
-# set limits 
-firstQu <- as.numeric(summary(z2$n)[2])
-median <- as.numeric(summary(z2$n)[3])
-thirdQu <- as.numeric(summary(z2$n)[5])
-
-# PLOT 
-pdf("dbcan_HMMER_occurr_mothers_same_genus.pdf")
-# below 1st Qu.
-z3 <- subset(z2,n < firstQu)
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
-        main="Co-occurrence - Frequency: below 1st Qu.") 
-# 1st Qu. - median
-z3 <- subset(z2, n >= firstQu & n < median)
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
-        main="Co-occurrence - Frequency: 1st Qu. - median") 
-# median  - 3rd Qu. 
-z3 <- subset(z2,n >= median & n < thirdQu)
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
-        main="Co-occurrence - Frequency: median - 3rd Qu.") 
-# above 3rd Qu. 
-z3 <- subset(z2,n >= thirdQu)
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
-        main="Co-occurrence - Frequency: above 3rd Qu.") 
-# without any subsetting
-z3 <- z2
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.06, cexCol=0.06,
-        main="Co-occurrence - all")
-dev.off()
-
-##################################
-##################################
-
-# ENZYMES CO-OCCURRENCE in the same GENUS - mothers AND piglets 
-
-z <- gt_hmmer %>% dplyr::select(enzymeID,pig,genus)
-
-IDs <- no_reps_all %>% dplyr::select(pig) %>% distinct()
-# collect mothers enzyme info only 
-z <- left_join(IDs,z)
-
-z1 <- z %>% 
-  group_by(genus,enzymeID) %>% 
-  tally() 
-
-z2 <- z %>% group_by(enzymeID) %>% tally() 
-
-# PLOT 
-pdf("dbcan_HMMER_occurr_moms&piglets_same_genus.pdf")
-# without any subsetting
-z3 <- z2
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.06, cexCol=0.06,
-        main="Co-occurrence of CAZy enzymes in the same genus")
-dev.off()
-
-
-##################################
-##################################
-
-# ENZYMES CO-OCCURRENCE in the same SPECIES - mothers AND piglets 
-
-z <- gt_hmmer %>% dplyr::select(enzymeID,pig,species)
-
-IDs <- no_reps_all %>% dplyr::select(pig) %>% distinct()
-# collect mothers enzyme info only 
-z <- left_join(IDs,z)
-
-z1 <- z %>% 
-  group_by(species,enzymeID) %>% 
-  tally() 
-
-z2 <- z %>% group_by(enzymeID) %>% tally() 
-
-# PLOT 
-pdf("dbcan_HMMER_occurr_moms&piglets_same_species.pdf")
-# without any subsetting
-z3 <- z2
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.06, cexCol=0.06,
-        main="Co-occurrence of CAZy enzymes in the same species")
-dev.off()
-
-##################################
-##################################
-
-
-# ENZYMES CO-OCCURRENCE in the same subject 
-
-# create an adjancy matrix: rows are species, columns are enzyme IDs
-z <- gt_hmmer %>% dplyr::select(enzymeID,pig)
-z
-
-z1 <- z %>% 
-  group_by(pig,enzymeID) %>% 
-  tally() 
-
-z2 <- z %>% group_by(enzymeID) %>% tally() 
-
-# set limits 
-firstQu <- as.numeric(summary(z2$n)[2])
-median <- as.numeric(summary(z2$n)[3])
-thirdQu <- as.numeric(summary(z2$n)[5])
-
-# PLOT 
-pdf("dbcan_HMMER_occurr_same_host.pdf")
-# below 1st Qu.
-z3 <- subset(z2,n < firstQu)
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
-        main="Co-occurrence - Frequency: below 1st Qu.") 
-# 1st Qu. - median
-z3 <- subset(z2, n >= firstQu & n < median)
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
-        main="Co-occurrence - Frequency: 1st Qu. - median") 
-# median  - 3rd Qu. 
-z3 <- subset(z2,n >= median & n < thirdQu)
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
-        main="Co-occurrence - Frequency: median - 3rd Qu.") 
-# above 3rd Qu. 
-z3 <- subset(z2,n >= thirdQu)
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.3, cexCol=0.3,
-        main="Co-occurrence - Frequency: above 3rd Qu.") 
-# without any subsetting
-z3 <- z2
-thelist <- as.character(z3$enzymeID)
-z1_sub <- subset(z1, (enzymeID %in% thelist)) %>% drop.levels()
-V <- crossprod(table(z1_sub[1:2]))
-heatmap(V, Rowv = NULL,Colv=NULL,
-        na.rm = TRUE, scale="none",cexRow = 0.06, cexCol=0.06,
-        main="Co-occurrence of CAZy enzymes in the same host") 
-dev.off()

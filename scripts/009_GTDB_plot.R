@@ -213,10 +213,30 @@ df0$gOTU <- paste0("gOTU_",df0$gOTU)
 NROW(unique(df0$gOTU))
 NROW(df0)
 
+##############################################
+
+# how many species per sample do we have ? 
+
+head(df0)
+
+z <- df0 %>%
+  group_by(pig,date,species) %>%
+  distinct() %>%
+  group_by(pig,date) %>%
+  tally()
+
+sink(file = paste0(out_dir,"gt_species_per_sample.txt"), 
+     append = FALSE, type = c("output"))
+paste0("Mean - number of gOTUs (GTDB species) per sample")
+mean(z$n)  
+paste0("Median - number of gOTUs (GTDB species) per sample")
+median(z$n)
+sink()
+
+##############################################
 
 df <- df0 %>%
   filter(!cohort=="Mothers")
-
 
 #################################
 
