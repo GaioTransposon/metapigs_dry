@@ -249,8 +249,8 @@ cm_ordination_plot <- plot_ordination(carbom_abund, carbom_abund.ord, type="samp
   theme(legend.position="top") 
 
 pdf(paste0(out_dir,"cm_phylo_ordination.pdf"))
-cm_ordination_plot +
-  facet_wrap(~cohort)
+cm_ordination_plot #+
+  #facet_wrap(~cohort)
 dev.off()
 
 ######################

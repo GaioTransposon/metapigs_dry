@@ -405,8 +405,8 @@ dRep_ordination_plot <- plot_ordination(carbom_abund, carbom_abund.ord, type="sa
   theme(legend.position="top")
 
 pdf(paste0(out_dir,"dRep_phylo_ordination.pdf"))
-dRep_ordination_plot +
-  facet_wrap(~cohort)
+dRep_ordination_plot #+
+  #facet_wrap(~cohort)
 dev.off()
 
 

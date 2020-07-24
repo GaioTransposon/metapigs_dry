@@ -387,8 +387,8 @@ gt_ordination_plot <- plot_ordination(carbom_abund, carbom_abund.ord, type="samp
   theme(legend.position="top")
 
 pdf(paste0(out_dir,"gt_phylo_ordination.pdf"))
-gt_ordination_plot +
-  facet_wrap(~cohort)
+gt_ordination_plot #+
+  #facet_wrap(~cohort)
 dev.off()
 
 
@@ -850,7 +850,7 @@ ctrlt8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape
 ######################
 carbom <- phyloseq(gOTU,TAX,samples)
 carbom <- subset_samples(carbom, (date %in% c("t0")))
-carbom <- subset_samples(carbom, (cohort %in% c("DScour")))
+carbom <- subset_samples(carbom, (cohort %in% c("D-Scour")))
 # RAREFY
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
@@ -867,7 +867,7 @@ dscourt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", sha
 ######################
 carbom <- phyloseq(gOTU,TAX,samples)
 carbom <- subset_samples(carbom, (date %in% c("t8")))
-carbom <- subset_samples(carbom, (cohort %in% c("DScour")))
+carbom <- subset_samples(carbom, (cohort %in% c("D-Scour")))
 # RAREFY
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
@@ -1120,295 +1120,118 @@ my.theme <- theme(axis.title.x = element_text(size=8),
 # ORDINATION  - effect of weight 
 
 
-# t0
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t0")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-mydf <- as.data.frame(carbom.ord$vectors)
-mydf$sample <- rownames(mydf)
-mydf <- mydf %>%
-  pivot_longer(., cols=-sample, names_to = "component", values_to = "value")
-mydf <- cSplit(indt = mydf, "sample", sep = "_", drop = NA)
-colnames(mydf) <- c("sample","component","value","date","pig")
-mydf$pig <- as.character(mydf$pig)
-mydf1 <- left_join(mydf,weights)
-mydf2 <- na.omit(mydf1) 
-# Spearman! 
-require(broom)
-z0 <- mydf2 %>% 
-  nest(-component) %>% 
-  mutate(cor=map(data,~cor.test(.x$value, .x$weight, method = "sp"))) %>%
-  mutate(tidied = map(cor, tidy)) %>% 
-  unnest(tidied, .drop = T) %>%
-  dplyr::arrange(desc(estimate)) %>%
-  dplyr::select(component,estimate,p.value,method,alternative)
-head(z0)
-mid<-median(mydf2$weight)
-t0 <- plot_ordination(carbom, carbom.ord, type="samples", color="weight", axes = c(20,77)) + 
-  geom_point(size=2)+
-  scale_color_gradient2(midpoint=mid, low="blue", mid="white",
-                        high="red", space ="Lab" ) +
-  ggtitle(paste0(mydf2$date[1],
-                 "  ",
-                 "Rho: ","x=",round(z0$estimate[1],3),
-                 " ",
-                 "y=",round(z0$estimate[2],3),
-                 "   ",
-                 "p-value: ","x=",round(z0$p.value[1],3),
-                 " ",
-                 "y=",round(z0$p.value[2],3)))+
-  theme_bw()+
-  my.theme
+weight_corr_plot <- function(ccc) {
+  
+  # RAREFY
+  ccc = rarefy_even_depth(ccc,
+                          replace=TRUE, 
+                          rngseed = 42)
+  carbom.ord <- ordinate(ccc, "PCoA", "bray")
+  mydf <- as.data.frame(carbom.ord$vectors)
+  mydf$sample <- rownames(mydf)
+  mydf <- mydf %>%
+    pivot_longer(., cols=-sample, names_to = "component", values_to = "value")
+  mydf <- cSplit(indt = mydf, "sample", sep = "_", drop = NA)
+  colnames(mydf) <- c("sample","component","value","date","pig")
+  mydf$pig <- as.character(mydf$pig)
+  mydf1 <- left_join(mydf,weights)
+  mydf2 <- na.omit(mydf1) 
+  
+  mid<-median(mydf2$weight)
+  
+  # Spearman! 
+  z <- mydf2 %>% 
+    nest(-component) %>% 
+    dplyr::mutate(cor=map(data,~cor.test(.x$value, .x$weight, method = "sp"))) %>%
+    dplyr::mutate(tidied = map(cor, tidy)) %>% 
+    unnest(tidied, .drop = T) %>%
+    dplyr::arrange(p.value) %>%
+    dplyr::select(component,estimate,p.value,method,alternative)
+  
+  # plot it! 
+  the_weight_plot <- plot_ordination(ccc, carbom.ord, type="samples", color="weight", 
+                                     axes = c(as.numeric(gsub("Axis.","",z$component[1])),
+                                              as.numeric(gsub("Axis.","",z$component[2])))) + 
+    geom_point(size=2)+
+    scale_color_gradient2(midpoint=mid, low="blue", mid="white",
+                          high="red", space ="Lab" )+
+    ggtitle(paste0(mydf2$date[1],
+                   "  ",
+                   "Rho: ","x=",round(z$estimate[1],3),
+                   " ",
+                   "y=",round(z$estimate[2],3),
+                   "   ",
+                   "p-value: ","x=",round(z$p.value[1],3),
+                   " ",
+                   "y=",round(z$p.value[2],3)))+
+    theme_bw()+
+    my.theme
+  
+  return(the_weight_plot)
+}
+
+weight_corr_output <- function(ccc) {
+  
+  # RAREFY
+  ccc = rarefy_even_depth(ccc,
+                          replace=TRUE, 
+                          rngseed = 42)
+  carbom.ord <- ordinate(ccc, "PCoA", "bray")
+  mydf <- as.data.frame(carbom.ord$vectors)
+  mydf$sample <- rownames(mydf)
+  mydf <- mydf %>%
+    pivot_longer(., cols=-sample, names_to = "component", values_to = "value")
+  mydf <- cSplit(indt = mydf, "sample", sep = "_", drop = NA)
+  colnames(mydf) <- c("sample","component","value","date","pig")
+  mydf$pig <- as.character(mydf$pig)
+  mydf1 <- left_join(mydf,weights)
+  mydf2 <- na.omit(mydf1) 
+  
+  # Spearman! 
+  z <- mydf2 %>% 
+    nest(-component) %>% 
+    dplyr::mutate(cor=map(data,~cor.test(.x$value, .x$weight, method = "sp"))) %>%
+    dplyr::mutate(tidied = map(cor, tidy)) %>% 
+    unnest(tidied, .drop = T) %>%
+    dplyr::arrange(p.value) %>%
+    dplyr::select(component,estimate,p.value,method,alternative)
+  
+  return(z)
+}
 
 
-# t2
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t2")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-mydf <- as.data.frame(carbom.ord$vectors)
-mydf$sample <- rownames(mydf)
-mydf <- mydf %>%
-  pivot_longer(., cols=-sample, names_to = "component", values_to = "value")
-mydf <- cSplit(indt = mydf, "sample", sep = "_", drop = NA)
-colnames(mydf) <- c("sample","component","value","date","pig")
-mydf$pig <- as.character(mydf$pig)
-mydf1 <- left_join(mydf,weights)
-mydf2 <- na.omit(mydf1) 
-# Spearman! 
-z2 <- mydf2 %>% 
-  nest(-component) %>% 
-  dplyr::mutate(cor=map(data,~cor.test(.x$value, .x$weight, method = "sp"))) %>%
-  dplyr::mutate(tidied = map(cor, tidy)) %>% 
-  unnest(tidied, .drop = T) %>%
-  dplyr::arrange(desc(estimate)) %>%
-  dplyr::select(component,estimate,p.value,method,alternative)
-head(z2)
-mid<-median(mydf2$weight)
-t2 <- plot_ordination(carbom, carbom.ord, type="samples", color="weight", axes = c(6,34)) + 
-  geom_point(size=2)+
-  scale_color_gradient2(midpoint=mid, low="blue", mid="white",
-                        high="red", space ="Lab" )+
-  ggtitle(paste0(mydf2$date[1],
-                 "  ",
-                 "Rho: ","x=",round(z2$estimate[1],3),
-                 " ",
-                 "y=",round(z2$estimate[2],3),
-                 "   ",
-                 "p-value: ","x=",round(z2$p.value[1],3),
-                 " ",
-                 "y=",round(z2$p.value[2],3)))+
-  theme_bw()+
-  my.theme
 
+all_timepoints <- ggarrange(weight_corr_plot(subset_samples(phyloseq(gOTU,TAX,samples), date %in% c("t0"))),
+                            weight_corr_plot(subset_samples(phyloseq(gOTU,TAX,samples), date %in% c("t2"))),
+                            weight_corr_plot(subset_samples(phyloseq(gOTU,TAX,samples), date %in% c("t4"))),
+                            weight_corr_plot(subset_samples(phyloseq(gOTU,TAX,samples), date %in% c("t6"))),
+                            weight_corr_plot(subset_samples(phyloseq(gOTU,TAX,samples), date %in% c("t8"))),
+                            ncol=2,nrow=3,common.legend = TRUE)
 
-# t4
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t4")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-mydf <- as.data.frame(carbom.ord$vectors)
-mydf$sample <- rownames(mydf)
-mydf <- mydf %>%
-  pivot_longer(., cols=-sample, names_to = "component", values_to = "value")
-mydf <- cSplit(indt = mydf, "sample", sep = "_", drop = NA)
-colnames(mydf) <- c("sample","component","value","date","pig")
-mydf$pig <- as.character(mydf$pig)
-mydf1 <- left_join(mydf,weights)
-mydf2 <- na.omit(mydf1) 
-# Spearman! 
-z4 <- mydf2 %>% 
-  nest(-component) %>% 
-  dplyr::mutate(cor=map(data,~cor.test(.x$value, .x$weight, method = "sp"))) %>%
-  dplyr::mutate(tidied = map(cor, tidy)) %>% 
-  unnest(tidied, .drop = T) %>%
-  dplyr::arrange(desc(estimate)) %>%
-  dplyr::select(component,estimate,p.value,method,alternative)
-head(z)
-mid<-median(mydf2$weight)
-t4 <- plot_ordination(carbom, carbom.ord, type="samples", color="weight", axes = c(17,5)) + 
-  geom_point(size=2)+
-  scale_color_gradient2(midpoint=mid, low="blue", mid="white",
-                        high="red", space ="Lab" )+
-  ggtitle(paste0(mydf2$date[1],
-                 "  ",
-                 "Rho: ","x=",round(z4$estimate[1],3),
-                 " ",
-                 "y=",round(z4$estimate[2],3),
-                 "   ",
-                 "p-value: ","x=",round(z4$p.value[1],3),
-                 " ",
-                 "y=",round(z4$p.value[2],3)))+
-  theme_bw()+
-  my.theme
-t4
-
-
-# t6
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t6")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-mydf <- as.data.frame(carbom.ord$vectors)
-mydf$sample <- rownames(mydf)
-mydf <- mydf %>%
-  pivot_longer(., cols=-sample, names_to = "component", values_to = "value")
-mydf <- cSplit(indt = mydf, "sample", sep = "_", drop = NA)
-colnames(mydf) <- c("sample","component","value","date","pig")
-mydf$pig <- as.character(mydf$pig)
-mydf1 <- left_join(mydf,weights)
-mydf2 <- na.omit(mydf1) 
-# Spearman! 
-z6 <- mydf2 %>% 
-  nest(-component) %>% 
-  dplyr::mutate(cor=map(data,~cor.test(.x$value, .x$weight, method = "sp"))) %>%
-  dplyr::mutate(tidied = map(cor, tidy)) %>% 
-  unnest(tidied, .drop = T) %>%
-  dplyr::arrange(desc(estimate)) %>%
-  dplyr::select(component,estimate,p.value,method,alternative)
-head(z6)
-mid<-median(mydf2$weight)
-t6 <- plot_ordination(carbom, carbom.ord, type="samples", color="weight", axes = c(15,59)) + 
-  geom_point(size=2)+
-  scale_color_gradient2(midpoint=mid, low="blue", mid="white",
-                        high="red", space ="Lab" )+
-  ggtitle(paste0(mydf2$date[1],
-                 "  ",
-                 "Rho: ","x=",round(z6$estimate[1],3),
-                 " ",
-                 "y=",round(z6$estimate[2],3),
-                 "   ",
-                 "p-value: ","x=",round(z6$p.value[1],3),
-                 " ",
-                 "y=",round(z6$p.value[2],3)))+
-  theme_bw()+
-  my.theme
-t6
-
-
-# t8
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t8")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-mydf <- as.data.frame(carbom.ord$vectors)
-mydf$sample <- rownames(mydf)
-mydf <- mydf %>%
-  pivot_longer(., cols=-sample, names_to = "component", values_to = "value")
-mydf <- cSplit(indt = mydf, "sample", sep = "_", drop = NA)
-colnames(mydf) <- c("sample","component","value","date","pig")
-mydf$pig <- as.character(mydf$pig)
-mydf1 <- left_join(mydf,weights)
-mydf2 <- na.omit(mydf1) 
-# Spearman! 
-z8 <- mydf2 %>% 
-  nest(-component) %>% 
-  dplyr::mutate(cor=map(data,~cor.test(.x$value, .x$weight, method = "sp"))) %>%
-  dplyr::mutate(tidied = map(cor, tidy)) %>% 
-  unnest(tidied, .drop = T) %>%
-  dplyr::arrange(desc(estimate)) %>%
-  dplyr::select(component,estimate,p.value,method,alternative)
-head(z8)
-# plot it! 
-mid<-median(sample_data(carbom)$weight)
-t8 <- plot_ordination(carbom, carbom.ord, type="samples", color="weight", axes = c(17,41)) + 
-  geom_point(size=2)+
-  scale_color_gradient2(midpoint=mid, low="blue", mid="white",
-                        high="red", space ="Lab" )+
-  ggtitle(paste0(mydf2$date[1],
-                 "  ",
-                 "Rho: ","x=",round(z8$estimate[1],3),
-                 " ",
-                 "y=",round(z8$estimate[2],3),
-                 "   ",
-                 "p-value: ","x=",round(z8$p.value[1],3),
-                 " ",
-                 "y=",round(z8$p.value[2],3)))+
-  theme_bw()+
-  my.theme
-t8
-
-# t10
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t10")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-mydf <- as.data.frame(carbom.ord$vectors)
-mydf$sample <- rownames(mydf)
-mydf <- mydf %>%
-  pivot_longer(., cols=-sample, names_to = "component", values_to = "value")
-mydf <- cSplit(indt = mydf, "sample", sep = "_", drop = NA)
-colnames(mydf) <- c("sample","component","value","date","pig")
-mydf$pig <- as.character(mydf$pig)
-mydf1 <- left_join(mydf,weights)
-mydf2 <- na.omit(mydf1) 
-# Spearman! 
-z10 <- mydf2 %>% 
-  nest(-component) %>% 
-  dplyr::mutate(cor=map(data,~cor.test(.x$value, .x$weight, method = "sp"))) %>%
-  dplyr::mutate(tidied = map(cor, tidy)) %>% 
-  unnest(tidied, .drop = T) %>%
-  dplyr::arrange(desc(estimate)) %>%
-  dplyr::select(component,estimate,p.value,method,alternative)
-head(z10) 
-# plot it! 
-mid<-median(mydf2$weight)
-t10 <- plot_ordination(carbom, carbom.ord, type="samples", color="weight", axes = c(15,48)) + 
-  geom_point(size=2)+
-  scale_color_gradient2(midpoint=mid, low="blue", mid="white",
-                        high="red", space ="Lab" )+
-  ggtitle(paste0(mydf2$date[1],
-                 "  ",
-                 "Rho: ","x=",round(z10$estimate[1],3),
-                 " ",
-                 "y=",round(z10$estimate[2],3),
-                 "   ",
-                 "p-value: ","x=",round(z10$p.value[1],3),
-                 " ",
-                 "y=",round(z10$p.value[2],3)))+
-  theme_bw()+
-  my.theme
-t10
-
-
-all_timepoints <- ggdplyr::arrange(t0,t2,t4,t6,t8,t10,ncol=2,nrow=3,common.legend = TRUE)
 
 pdf(paste0(out_dir,"gt_phylo_ordination_weight.pdf"))
 all_timepoints
 dev.off()
 
+# save data of corr with weight
+w_t0 <- as.data.frame(weight_corr_output(subset_samples(phyloseq(gOTU,TAX,samples), date %in% c("t0"))))
+w_t0$date="t0"
+w_t2 <- as.data.frame(weight_corr_output(subset_samples(phyloseq(gOTU,TAX,samples), date %in% c("t2"))))
+w_t2$date="t2"
+w_t4 <- as.data.frame(weight_corr_output(subset_samples(phyloseq(gOTU,TAX,samples), date %in% c("t4"))))
+w_t4$date="t4"
+w_t6 <- as.data.frame(weight_corr_output(subset_samples(phyloseq(gOTU,TAX,samples), date %in% c("t6"))))
+w_t6$date="t6"
+w_t8 <- as.data.frame(weight_corr_output(subset_samples(phyloseq(gOTU,TAX,samples), date %in% c("t8"))))
+w_t8$date="t8"
+w_t10 <- as.data.frame(weight_corr_output(subset_samples(phyloseq(gOTU,TAX,samples), date %in% c("t10"))))
+w_t10$date="t10"
 
-z0$date="t0"
-z2$date="t2"
-z4$date="t4"
-z6$date="t6"
-z8$date="t8"
-z10$date="t10"
-
-weight_stats <- rbind(z0,z2,z4,z6,z8,z10)
-
+weight_stats <- rbind(w_t0,w_t2,w_t4,w_t6,w_t8,w_t10)
 
 # save 
 fwrite(x=weight_stats, file = paste0(out_dir_git,"gtdb_weight.csv"), sep = ",")
+
 
 
 ######################################################################
