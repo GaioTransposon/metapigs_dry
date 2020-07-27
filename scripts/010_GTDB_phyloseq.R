@@ -1,19 +1,25 @@
 
 library(readr)
-library(splitstackshape)
-library(tidyr)
-library(phyloseq)
+library(tidyverse)
 library(dplyr)
+library(robCompositions)
+library(microbiome)
+library(phyloseq)
 library(ggplot2)
-library(EnvStats)
+library(ape)
+library(splitstackshape)
+library(magrittr)
+library(scales)
 library(ggpubr)
+library(pheatmap)
+
+library(EnvStats)
 library(readxl)
 library(data.table)
-library(ape)
-library(scales)
 library(FSA)
 library(openxlsx)
 library(purrr)
+library(broom)
 
 
 source_dir = "/Users/12705859/metapigs_dry/source_data/" # git 
@@ -1142,8 +1148,8 @@ weight_corr_plot <- function(ccc) {
   # Spearman! 
   z <- mydf2 %>% 
     nest(-component) %>% 
-    dplyr::mutate(cor=map(data,~cor.test(.x$value, .x$weight, method = "sp"))) %>%
-    dplyr::mutate(tidied = map(cor, tidy)) %>% 
+    dplyr::mutate(cor=map(data,~cor.test(.x$value, .x$weight, method = "sp")),
+                  tidied = map(cor, tidy)) %>% 
     unnest(tidied, .drop = T) %>%
     dplyr::arrange(p.value) %>%
     dplyr::select(component,estimate,p.value,method,alternative)
@@ -1190,8 +1196,8 @@ weight_corr_output <- function(ccc) {
   # Spearman! 
   z <- mydf2 %>% 
     nest(-component) %>% 
-    dplyr::mutate(cor=map(data,~cor.test(.x$value, .x$weight, method = "sp"))) %>%
-    dplyr::mutate(tidied = map(cor, tidy)) %>% 
+    dplyr::mutate(cor=map(data,~cor.test(.x$value, .x$weight, method = "sp")),
+                  tidied = map(cor, tidy)) %>% 
     unnest(tidied, .drop = T) %>%
     dplyr::arrange(p.value) %>%
     dplyr::select(component,estimate,p.value,method,alternative)
@@ -1206,6 +1212,7 @@ all_timepoints <- ggarrange(weight_corr_plot(subset_samples(phyloseq(gOTU,TAX,sa
                             weight_corr_plot(subset_samples(phyloseq(gOTU,TAX,samples), date %in% c("t4"))),
                             weight_corr_plot(subset_samples(phyloseq(gOTU,TAX,samples), date %in% c("t6"))),
                             weight_corr_plot(subset_samples(phyloseq(gOTU,TAX,samples), date %in% c("t8"))),
+                            weight_corr_plot(subset_samples(phyloseq(gOTU,TAX,samples), date %in% c("t10"))),
                             ncol=2,nrow=3,common.legend = TRUE)
 
 

@@ -1342,33 +1342,33 @@ this_mat_samples$sample_1  = factor(this_mat_samples$sample_1, levels=c("t0",
                                     "t10"))
 
 cm_PC12 <- ggbiplot(df6.pca,
-         labels=this_mat_samples$sample_2,
-         groups=this_mat_samples$sample_1,
-         ellipse=TRUE,
-         var.axes = FALSE,
-         labels.size = 2,
-         choices = (1:2)) +
+                      labels=this_mat_samples$sample_2,
+                      groups=this_mat_samples$sample_1,
+                      ellipse=TRUE,
+                      var.axes = FALSE,
+                      labels.size = 2,
+                      choices = (1:2)) +
   theme_bw() +
   xlim(c(-2,1)) +
-  theme(legend.position="none")
+  scale_colour_discrete(name="timepoint")+
+  guides(color = guide_legend(ncol = 1))
 cm_PC34 <- ggbiplot(df6.pca,
-         labels=this_mat_samples$sample_2,
-         groups=this_mat_samples$sample_1,
-         ellipse=TRUE,
-         var.axes = FALSE,
-         labels.size = 2,
-         choices = (3:4)) +
+                      labels=this_mat_samples$sample_2,
+                      groups=this_mat_samples$sample_1,
+                      ellipse=TRUE,
+                      var.axes = FALSE,
+                      labels.size = 2,
+                      choices = (3:4)) +
   theme_bw() +
-  theme(legend.position="none")
+  scale_colour_discrete(name="timepoint")+
+  guides(color = guide_legend(ncol = 1))
 
 
 cm_PCA <- ggarrange(cm_PC12,cm_PC34,
-                    ncol=2)
-
+                      ncol=2,legend = "right",
+                      common.legend=TRUE)
 
 pdf(paste0(out_dir,"cm_PCA.pdf"), width=7,height=4)
 cm_PCA
 dev.off()
-
-
 
