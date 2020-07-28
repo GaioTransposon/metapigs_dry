@@ -132,6 +132,23 @@ gt_hmmer <- as.data.frame(gt_hmmer)
 
 head(gt_hmmer)
 
+#######
+# merge gtdbtk- bins taxonomic assignments with hmmer data (here I need the number of proteins)
+gt_hmmer1 <- inner_join(gtdbtk_bins,hmmerClean)
+head(gt_hmmer1)
+
+gt_hmmer2 <- gt_hmmer1 %>%
+  dplyr::select(predicted_protein_ID,phylum) %>%
+  distinct() %>%
+  add_tally() %>%
+  group_by(phylum) %>%
+  dplyr::summarise(sum=sum(n)) %>%
+  dplyr::arrange(desc(sum))
+
+this_order <- as.list(gt_hmmer2$phylum)
+#######
+
+
 prop_CAZ_per_phylum <- gt_hmmer %>%
   group_by(phylum) %>%
   dplyr::summarise(sum=sum(enz_count)) %>%
@@ -143,32 +160,43 @@ prop_CAZclass_per_phylum <- gt_hmmer %>%
   group_by(phylum) %>%
   dplyr::mutate(value=(sum/sum(sum))*100)
 
-a_gt <- ggplot(prop_CAZ_per_phylum, aes(y=value, x=phylum)) + 
+aa_gt <- ggplot(gt_hmmer2, aes(y=sum, x=factor(phylum, levels = this_order))) + 
+  geom_bar(position="dodge", stat="identity",colour="black",fill="snow1")+ #lightskyblue happier
+  theme_pubr()+
+  ylab("Total predicted proteins")+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_text(size=9),
+        axis.title.y = element_text(size=11),
+        axis.title.x=element_blank())
+
+a_gt <- ggplot(prop_CAZ_per_phylum, aes(y=value, x=factor(phylum, levels = this_order))) + 
   geom_bar(position="dodge", stat="identity",colour="black",fill="snow3")+ #lightskyblue happier
-  theme(axis.text.x=element_text(angle=90))+
   theme_pubr()+
   ylab("Proportion of CAZymes (%)")+
-  theme(axis.title.x = element_blank(),
-        axis.title.y = element_text(size=8),
-        axis.text.x = element_blank())
-b_gt <- ggplot(prop_CAZclass_per_phylum, aes(fill=enzymeNAME, y=value, x=phylum)) + 
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_text(size=9),
+        axis.title.y = element_text(size=11),
+        axis.title.x=element_blank())
+
+
+b_gt <- ggplot(prop_CAZclass_per_phylum, aes(fill=enzymeNAME, y=value, x=factor(phylum, levels = this_order))) + 
   geom_bar(position="fill", stat="identity",colour="black")+
-  theme(axis.text.x=element_text(angle=90))+
   scale_fill_brewer(palette="Spectral")+
   theme_pubr()+
   theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5,size=6),
-        axis.text.y=element_text(size=6),
-        axis.title.y = element_text(size=8),
+        axis.text.y=element_text(size=8),
+        axis.title.y = element_text(size=10),
         axis.title.x=element_blank(),
         legend.position="right",legend.text = element_text(size=8),
         legend.title = element_blank())
 
 CAZ_HMMER_GTphyla_plot <- plot_grid(
   plot_grid(
+    aa_gt + theme(legend.position = "none"),
     a_gt + theme(legend.position = "none"),
     b_gt + theme(legend.position = "none"),
     ncol = 1,
-    rel_heights=c(4,6),
+    rel_heights=c(3,3,4),
     align = "v"),
   plot_grid(
     get_legend(a_gt),
@@ -237,29 +265,32 @@ fwrite(gt_hmmer_species, file=paste0(out_dir_git,"gt_hmmer_species.tsv"), sep = 
 # and the extent of share of unique enzymeIDs
 
 
+
 # function to generate Venn plot
 top_genera_per_enzymeCLASS <- function(df_enzymeNAME_selection) {
   
   df1 <- df_enzymeNAME_selection %>% 
     group_by(enzymeNAME,genus) %>%
     dplyr::summarise(sum=sum(enz_count)) %>%
-    dplyr::arrange(desc(sum))
+    dplyr::arrange(desc(sum)) %>% 
+    dplyr::mutate(perc=round((sum/sum(sum))*100,1))
   
   top_genera <- as.list(df1[1:3,2])
+  top_perc <- as.list(df1[1:3,4])
   
-  set1 <- df %>% 
+  set1 <- df_enzymeNAME_selection %>% 
     dplyr::filter(genus==top_genera$genus[1]) %>% 
     dplyr::select(enzymeID) %>%
     distinct()
   set1 <- as.character(set1$enzymeID)
   
-  set2 <- df %>% 
+  set2 <- df_enzymeNAME_selection %>% 
     dplyr::filter(genus==top_genera$genus[2]) %>% 
     dplyr::select(enzymeID) %>%
     distinct()
   set2 <- as.character(set2$enzymeID)
   
-  set3 <- df %>% 
+  set3 <- df_enzymeNAME_selection %>% 
     dplyr::filter(genus==top_genera$genus[3]) %>% 
     dplyr::select(enzymeID) %>%
     distinct()
@@ -271,9 +302,9 @@ top_genera_per_enzymeCLASS <- function(df_enzymeNAME_selection) {
   # Chart
   v1 <- venn.diagram(
     x = list(set1, set2, set3),
-    category.names = c(as.character(top_genera$genus[1]), 
-                       as.character(top_genera$genus[2]), 
-                       as.character(top_genera$genus[3])),
+    category.names = c(as.character(paste0(top_genera$genus[1]," ",round(top_perc$perc[1],1),"%")), 
+                       as.character(paste0(top_genera$genus[2]," ",round(top_perc$perc[2],1),"%")), 
+                       as.character(paste0(top_genera$genus[3]," ",round(top_perc$perc[3],1),"%"))),
     
     main=paste0(as.character(df_enzymeNAME_selection$enzymeNAME[1]),
                 " (n=",NROW(unique(df_enzymeNAME_selection$enzymeID)),")"),
@@ -321,11 +352,117 @@ grid.arrange(gTree(children=top_genera_per_enzymeCLASS(as.data.frame(gt_hmmer %>
              gTree(children=top_genera_per_enzymeCLASS(as.data.frame(gt_hmmer %>% dplyr::filter(enzymeNAME=="CE")))),
              gTree(children=top_genera_per_enzymeCLASS(as.data.frame(gt_hmmer %>% dplyr::filter(enzymeNAME=="AA")))),
              gTree(children=top_genera_per_enzymeCLASS(as.data.frame(gt_hmmer %>% dplyr::filter(enzymeNAME=="CBM")))),
-             gTree(children=top_genera_per_enzymeCLASS(as.data.frame(gt_hmmer %>% dplyr::filter(enzymeNAME=="SLH")))),
+             gTree(children=top_genera_per_enzymeCLASS(as.data.frame(gt_hmmer %>% dplyr::filter(enzymeNAME=="PL")))),
              gTree(children=top_genera_per_enzymeCLASS(as.data.frame(gt_hmmer %>% dplyr::filter(enzymeNAME=="GT")))),
+             gTree(children=top_genera_per_enzymeCLASS(as.data.frame(gt_hmmer %>% dplyr::filter(enzymeNAME=="SLH")))),
              gTree(children=top_genera_per_enzymeCLASS(as.data.frame(gt_hmmer %>% dplyr::filter(enzymeNAME=="cohesin")))),
              ncol=2,nrow=4)
 dev.off()
+##########################################################
+##########################################################
 
-##########################################################
-##########################################################
+# Gene Frequency and distribution across species 
+
+gt_hmmer2 <- inner_join(gtdbtk_bins,hmmerClean)
+
+
+unique(gt_hmmer2$phylum)
+
+
+from = c("Firmicutes","Firmicutes_A",
+         "Bacteroidota","Actinobacteriota",
+         "Patescibacteria","Spirochaetota",
+         "Firmicutes_C","Planctomycetota",  
+         "Myxococcota","Proteobacteria", 
+         "Cyanobacteria","Euryarchaeota",
+         "Campylobacterota","Verrucomicrobiota_A",
+         "Fibrobacterota","Desulfobacterota_A",
+         "Synergistota","Thermoplasmatota",
+         "Firmicutes_B","Verrucomicrobiota",  
+         "Elusimicrobiota","Fusobacteriota",    
+         "Deferribacterota","Eremiobacterota",    
+         "Thermotogota",NA)
+
+to = c("Firmicutes","Firmicutes",
+       "Bacteroidota","Actinobacteriota",
+       "Other Phyla","Other Phyla",
+       "Firmicutes","Other Phyla",  
+       "Other Phyla","Proteobacteria", 
+       "Other Phyla","Other Phyla",
+       "Other Phyla","Other Phyla",
+       "Other Phyla","Other Phyla",
+       "Other Phyla","Other Phyla",
+       "Firmicutes","Other Phyla",  
+       "Other Phyla","Other Phyla",    
+       "Other Phyla","Other Phyla",    
+       "Other Phyla","Other Phyla")
+
+# replace collection dates (date format) with groups of collection dates (character format)
+gt_hmmer2$phylum <- plyr::mapvalues(as.character(gt_hmmer2$phylum), from, to)
+unique(gt_hmmer2$phylum)
+
+
+z <- gt_hmmer2 %>% 
+  dplyr::select(pig,bin,predicted_protein_ID,enzymeID,enzymeNAME,species, phylum) %>% 
+  distinct() %>%
+  dplyr::select(enzymeID,enzymeNAME,species,phylum) 
+
+# function to plot frequency of genes per genome and number of diff enzymes within each genome
+gene_frequency_fun <- function(df_enzymeNAME_selected) {
+  
+  x <- df_enzymeNAME_selected %>% 
+    dplyr::mutate(n=1) %>%
+    group_by(enzymeID,species,phylum) %>%
+    dplyr::summarise(sum_count=sum(n)) %>% 
+    group_by(species,phylum) %>%
+    dplyr::summarise(x=mean(sum_count)) 
+  
+  
+  y <- df_enzymeNAME_selected %>% 
+    dplyr::select(enzymeID,species) %>%
+    distinct() %>% 
+    dplyr::mutate(n=1) %>%
+    group_by(species) %>%
+    dplyr::summarise(y=sum(n)) 
+  
+  xy <- inner_join(x,y) 
+  
+  print(ggplot(xy,aes(x=x,y=y,color=phylum)) +
+          geom_point()+
+          labs(x = paste0("Number of genes encoding ",
+                          unique(df_enzymeNAME_selected$enzymeNAME),
+                          " per genome"),
+               y = paste0("Number of different enzymes within the ",
+                          unique(df_enzymeNAME_selected$enzymeNAME),
+                          " class"))+
+          geom_text_repel(
+            data          = subset(xy, x > max(xy$x)/2 | y > max(xy$y)/2+max(xy$y)/4), 
+            aes(x,y,label=species), 
+            size=2,
+            segment.size  = 0.2,
+            segment.color = "grey50",
+            direction     = "both"
+          ))
+}
+
+
+p1 <- gene_frequency_fun(as.data.frame(z %>% dplyr::filter(enzymeNAME=="GT")))
+p2 <- gene_frequency_fun(as.data.frame(z %>% dplyr::filter(enzymeNAME=="GH")))
+p3 <- gene_frequency_fun(as.data.frame(z %>% dplyr::filter(enzymeNAME=="CBM")))
+p4 <- gene_frequency_fun(as.data.frame(z %>% dplyr::filter(enzymeNAME=="CE")))
+p5 <- gene_frequency_fun(as.data.frame(z %>% dplyr::filter(enzymeNAME=="PL")))
+p6 <- gene_frequency_fun(as.data.frame(z %>% dplyr::filter(enzymeNAME=="AA")))
+p7 <- gene_frequency_fun(as.data.frame(z %>% dplyr::filter(enzymeNAME=="SLH")))
+p8 <- gene_frequency_fun(as.data.frame(z %>% dplyr::filter(enzymeNAME=="cohesin")))
+
+
+pdf(paste0(out_dir,"dbcan_hmmer_geneFrequency.pdf"))
+p1
+p2
+p3
+p4
+p5
+p6
+p7
+p8
+dev.off()
