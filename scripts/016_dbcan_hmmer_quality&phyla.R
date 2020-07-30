@@ -397,7 +397,7 @@ to = c("Firmicutes","Firmicutes",
        "Other Phyla","Other Phyla",    
        "Other Phyla","Other Phyla")
 
-# replace collection dates (date format) with groups of collection dates (character format)
+# replace 
 gt_hmmer2$phylum <- plyr::mapvalues(as.character(gt_hmmer2$phylum), from, to)
 unique(gt_hmmer2$phylum)
 
@@ -406,6 +406,18 @@ z <- gt_hmmer2 %>%
   dplyr::select(pig,bin,predicted_protein_ID,enzymeID,enzymeNAME,species, phylum) %>% 
   distinct() %>%
   dplyr::select(enzymeID,enzymeNAME,species,phylum) 
+
+
+# prepare empty file to capture genes per genome info 
+sink(file=paste0(out_dir,"dbcan_hmmerClean_genesXgenome.txt"), append=FALSE)
+paste0("summary of : genes per genome")
+sink()
+
+# prepare empty to catch csv data 
+fwrite(x = save, 
+       file=paste0(out_dir_git,"dbcan_hmmer_genesXgenomes.csv"), 
+       sep = ",", append = FALSE)
+
 
 # function to plot frequency of genes per genome and number of diff enzymes within each genome
 gene_frequency_fun <- function(df_enzymeNAME_selected) {
@@ -427,22 +439,68 @@ gene_frequency_fun <- function(df_enzymeNAME_selected) {
   
   xy <- inner_join(x,y) 
   
-  print(ggplot(xy,aes(x=x,y=y,color=phylum)) +
-          geom_point()+
-          labs(x = paste0("Number of genes encoding ",
-                          unique(df_enzymeNAME_selected$enzymeNAME),
-                          " per genome"),
-               y = paste0("Number of different enzymes within the ",
-                          unique(df_enzymeNAME_selected$enzymeNAME),
-                          " class"))+
-          geom_text_repel(
-            data          = subset(xy, x > max(xy$x)/2 | y > max(xy$y)/2+max(xy$y)/4), 
-            aes(x,y,label=species), 
-            size=2,
-            segment.size  = 0.2,
-            segment.color = "grey50",
-            direction     = "both"
-          ))
+  xy$enzyme_class <- unique(df_enzymeNAME_selected$enzymeNAME)
+  
+  sink(file=paste0(out_dir,"dbcan_hmmerClean_genesXgenome.txt"), append=TRUE)
+  print(paste0("enzyme class : ",unique(xy$enzyme_class)))
+  print(summary(xy$x))
+  sink()
+  
+  save <- xy %>% 
+    dplyr::mutate(genes_per_genome=x) %>%
+    dplyr::mutate(distinct_enzymes=y) %>%
+    dplyr::select(species,phylum,enzyme_class,genes_per_genome,distinct_enzymes)
+  
+  fwrite(x = save, 
+         file=paste0(out_dir_git,"dbcan_hmmer_genesXgenomes.csv"), 
+         sep = ",", append = TRUE)
+  
+  if (NROW(unique(y$y)) == 1) {
+    
+    # plot for enzyme class with only one enzymeID
+    print(ggplot(xy,aes(x=x,y=y,color=phylum)) +
+            geom_point()+
+            labs(x = paste0("Number of genes encoding ",
+                            unique(df_enzymeNAME_selected$enzymeNAME),
+                            " per genome"),
+                 y = paste0("Number of different ",
+                            unique(df_enzymeNAME_selected$enzymeNAME),
+                            " class enzymes within a genome"))+
+            geom_text_repel(
+              data          = subset(xy, x > 5 ), # max(xy$x)/2 ), 
+              aes(x,y,label=species), 
+              size=2,
+              segment.size  = 0.2,
+              segment.color = "grey50",
+              direction     = "both"
+            ) +
+            theme_bw())
+    
+    
+  } else {
+    
+    print(ggplot(xy,aes(x=x,y=y,color=phylum)) +
+            geom_point()+
+            labs(x = paste0("Number of genes encoding ",
+                            unique(df_enzymeNAME_selected$enzymeNAME),
+                            " per genome"),
+                 y = paste0("Number of different ",
+                            unique(df_enzymeNAME_selected$enzymeNAME),
+                            " class enzymes within a genome"))+
+            geom_text_repel(
+              data          = subset(xy, x > max(xy$x)/2 | y > max(xy$y)/2+max(xy$y)/4), 
+              aes(x,y,label=species), 
+              size=2,
+              segment.size  = 0.2,
+              segment.color = "grey50",
+              direction     = "both"
+            ) +
+            theme_bw())
+    
+  }
+  
+  
+  
 }
 
 
@@ -466,3 +524,6 @@ p6
 p7
 p8
 dev.off()
+
+
+

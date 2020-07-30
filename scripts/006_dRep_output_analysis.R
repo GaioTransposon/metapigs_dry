@@ -375,7 +375,7 @@ primary_piglets <- no_reps_all %>%
   ggplot(., aes(pig)) +
   geom_bar(aes(fill=type), width = 0.5) + 
   theme(axis.text.x = element_text(angle=65, vjust=0.6)) +
-  labs(title="Shared versus common primary clusters (95% ANI)", 
+  labs(title="Shared versus host unique primary clusters (95% ANI)", 
        subtitle="distribution among piglets",
        x = "piglets",
        y = "clustered bins") +
@@ -393,7 +393,7 @@ secondary_piglets <- no_reps_all %>%
   ggplot(., aes(pig)) +
   geom_bar(aes(fill=type), width = 0.5) + 
   theme(axis.text.x = element_text(angle=65, vjust=0.6)) +
-  labs(title="Shared versus common secondary clusters (99% ANI)", 
+  labs(title="Shared versus host unique secondary clusters (99% ANI)", 
        subtitle="distribution among piglets",
        x = "piglets",
        y = "clustered bins") +
@@ -414,7 +414,7 @@ primary_mothers <- no_reps_all %>%
   ggplot(., aes(pig)) +
   geom_bar(aes(fill=type), width = 0.5) + 
   theme(axis.text.x = element_text(angle=65, vjust=0.6)) +
-  labs(title="Shared versus common primary clusters (95% ANI)", 
+  labs(title="Shared versus host unique primary clusters (95% ANI)", 
        subtitle="distribution among mothers",
        x = "mothers",
        y = "clustered bins") +
@@ -432,7 +432,7 @@ secondary_mothers <- no_reps_all %>%
   ggplot(., aes(pig)) +
   geom_bar(aes(fill=type), width = 0.5) + 
   theme(axis.text.x = element_text(angle=65, vjust=0.6)) +
-  labs(title="Shared versus common secondary clusters (99% ANI)", 
+  labs(title="Shared versus host unique secondary clusters (99% ANI)", 
        subtitle="distribution among mothers",
        x = "mothers",
        y = "clustered bins") +

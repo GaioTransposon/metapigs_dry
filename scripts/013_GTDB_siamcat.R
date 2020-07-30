@@ -585,10 +585,12 @@ dev.off()
 setDT(z)    
 z <- z[, ":="(positive = sum(fc > 0), negative = sum(fc < 0)), by = comparison]
 
+
 fold_changes_plot <- z %>%
   dplyr::select(comparison,positive,negative) %>%
   dplyr::distinct() %>%
-  pivot_longer(., cols=c("positive","negative")) %>%
+  pivot_longer(., cols=c("negative","positive")) %>%
+  mutate(name = factor(name, levels = c("positive", "negative"))) %>%
   group_by(comparison) %>%
   mutate(prop=paste0(round(value/sum(value)*100),"%")) %>%
   ggplot(., aes(x=comparison,y=value,fill=name))+

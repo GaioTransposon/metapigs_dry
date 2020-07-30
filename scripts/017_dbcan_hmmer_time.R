@@ -171,7 +171,7 @@ pdf(paste0(out_dir,"dbcan_HMMER_all_plot.pdf"))
 ggplot(df_XY) +
   geom_point(aes(top_species, popularity, fill=enzymeNAME), 
              colour="black",pch=21, size=4)+
-  labs(x="percentage of top species",
+  labs(x="percentage of top species bearing the enzyme",
        y="prevalence in the pig population",
        fill="enzyme class")+
   scale_fill_gaio8()+
@@ -183,7 +183,7 @@ ggplot(df_XY) +
                               y = popularity,
                               fill = factor(enzymeNAME),
                               label = paste0(enzymeID,"\n",species)
-                            ),
+                            ), show.legend = FALSE,
                             box.padding   = 0.3,label.padding = 0.1,
                             point.padding = 0.5,alpha=0.7,
                             force         = 10,
@@ -192,7 +192,7 @@ ggplot(df_XY) +
                             direction     = "y", nudge_y = 10,
                             size=2.5,
                             color="black"
-  ) 
+  )
 dev.off()
 
 ###
