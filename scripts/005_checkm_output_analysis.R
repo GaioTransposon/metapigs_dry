@@ -343,19 +343,19 @@ az3$pig <- NULL
 
 az3$`number of timepoints per subject` <- as.numeric(az3$`number of timepoints per subject`)
 
-pdf(paste0(out_dir,"#bins_vs_#timepoints.pdf"))
+pdf(paste0(out_dir,"#bins_vs_#timepoints.pdf"), height = 4, width = 7)
 ggplot(data=az3, mapping=aes(x=`number of timepoints per subject`, y=`number of metagenomes per subject`)) + 
   geom_boxplot(outlier.shape=NA, inherit.aes = TRUE, aes(group=`number of timepoints per subject`))+
   geom_point(color='blue', size=0.6) +
   geom_smooth(method = "loess", se=TRUE, aes(group=1))+
-  labs(x = "number of timepoints available per subject",
-       y = "number of bins obtained per subject",
+  labs(x = "timepoints available per subject",
+       y = "MAGs obtained per subject",
        subtitle=NULL) +
   theme_bw()+
-  theme(axis.title.x=element_text(size=11),
-        axis.title.y=element_text(size=11),
-        axis.text.x=element_text(size=10),
-        axis.text.y=element_text(size=10))
+  theme(axis.title.x=element_text(size=15),
+        axis.title.y=element_text(size=15),
+        axis.text.x=element_text(size=14),
+        axis.text.y=element_text(size=14))
 dev.off()
 
 az4 <- az3 %>%
