@@ -41,8 +41,8 @@ df <- df %<>%
 original_colnames <- colnames(df)
 
 # transform depth values into counts
-# where {counts = depth*binLen/300} (300 is the read pair length) #2 is binLen 1:5 is the non-depths data
-A <- function(x) x * df[,2] / 300
+# where {counts = depth*median bin length/300} (300 is the read pair length) 
+A <- function(x) x * median(df[,2]) / 300    # A <- function(x) x * df[,2] / 300 we used to multiply by the bin length but that would un-normalize data 
 counts <- data.frame(df[1:5], apply(df[6:ncol(df)],2, A) )
 counts
 #return the original colnames to new dataframe

@@ -482,10 +482,10 @@ cm_Compl_vs_Contam <- ggplot(best, aes(x=Completeness, y=Contamination)) +
   xlab("Completeness (%)")+
   xlim(75,100)+
   theme_minimal()+
-  theme(axis.title.x=element_text(size=11),
-        axis.title.y=element_text(size=11),
-        axis.text.x=element_text(size=6),
-        axis.text.y=element_text(size=8),
+  theme(axis.title.x=element_text(size=14),
+        axis.title.y=element_text(size=14),
+        axis.text.x=element_text(size=11),
+        axis.text.y=element_text(size=11),
         legend.title = element_blank(),
         legend.position = "none")
 
@@ -543,9 +543,13 @@ ggplot(df_90100_5,
   geom_histogram(bins = 100, colour="black",fill="white") + 
   scale_x_log10() +
   ggtitle("Distribution of N50 (scaffolds) across nearly complete genomes") +
-  labs(x = "log10 (N50 scaffolds)",
+  labs(x = "N50 (scaffolds)",
        y = "Frequency")+
-  theme_bw()
+  theme_bw()+
+  theme(axis.title.x=element_text(size=14),
+        axis.text.x=element_text(size=12),
+        axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=12))
 dev.off()
 
 
@@ -584,10 +588,10 @@ plot_scaffolds <- ggplot(data= toplot, aes(x=`# scaffolds`, fill=type)) +
   xlab("scaffolds") +
   ylab("Frequency")+
   theme_minimal()+
-  theme(axis.title.x=element_text(size=11),
-        axis.title.y=element_text(size=11),
-        axis.text.x=element_text(size=6),
-        axis.text.y=element_text(size=8))+
+  theme(axis.title.x=element_text(size=14),
+        axis.title.y=element_text(size=14),
+        axis.text.x=element_text(size=11),
+        axis.text.y=element_text(size=11))+
   labs(fill="") +
   lims(x=c(0,750))
 
@@ -598,23 +602,22 @@ plot_pred_genes <- ggplot(data= toplot, aes(x=`# predicted genes`, fill=type)) +
                              "#F8766D", #red
                              "#45B4B8" #blue
                              )) + 
+  scale_x_continuous(breaks=seq(1e3,6e3, by = 2e3), label=scientific) +
   xlab("predicted genes") +
   ylab("Frequency")+
   theme_minimal()+
-  theme(axis.title.x=element_text(size=11),
-        axis.title.y=element_text(size=11),
-        axis.text.x=element_text(size=6),
-        axis.text.y=element_text(size=8))+
+  theme(axis.title.x=element_text(size=14),
+        axis.title.y=element_text(size=14),
+        axis.text.x=element_text(size=11),
+        axis.text.y=element_text(size=11))+
   #scale_x_continuous(breaks=pretty(`# predicted genes`, length(`# predicted genes`)/2))+
-  labs(fill="") +
-  lims(x=c(0,5000))
-
+  labs(fill="")
 
 plots <- ggarrange(plot_scaffolds,plot_pred_genes,cm_Compl_vs_Contam,nrow=1,
                    labels=c("A","B","C"),
                    common.legend=TRUE)
 
-pdf(paste0(out_dir,"cm_Compl_vs_Contam_scaffolds_genes.pdf"))
+pdf(paste0(out_dir,"cm_Compl_vs_Contam_scaffolds_genes.pdf"), width=7, height=4)
 plots
 dev.off()
 

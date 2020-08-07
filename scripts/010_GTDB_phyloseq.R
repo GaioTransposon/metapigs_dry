@@ -378,9 +378,11 @@ total = median(sample_sums(carbom))
 standf = function(x, t=total) round(t * (x / sum(x)))
 carbom = transform_sample_counts(carbom, standf)
 sample_variables(carbom)
-# keep only very abundant OTUs
-# taking gOTUs that represent at least 3% of the sample and present in at least 40 samples 
-carbom_abund <- filter_taxa(carbom, function(x) sum(x > total*0.03) > 40, TRUE)
+
+
+# Remove taxa not seen more than 10 times in at least a 30% of the samples 
+carbom_abund <- filter_taxa(carbom, function(x) sum(x > 10) > (0.3*length(x)), TRUE)
+
 
 carbom_abund.ord <- ordinate(carbom_abund, "NMDS", "bray")
 
@@ -402,20 +404,7 @@ dev.off()
 
 # NETWORK ANALYSIS 
 
-# NORMALIZATION BY MEDIAN SEQUENCING DEPTH
-carbom <- phyloseq(gOTU,TAX,samples)
-# SUBSETTING phyloseq obejct
-carbom <- subset_samples(carbom, (date %in% c("t0","t1","t2","t3","t4","t5","t6","t7","t8","t9")))
-# Normalize number of reads in each sample using median sequencing depth.
-total = median(sample_sums(carbom))
-standf = function(x, t=total) round(t * (x / sum(x)))
-carbom = transform_sample_counts(carbom, standf)
-sample_variables(carbom)
-# keep only very abundant OTUs
-# taking gOTUs that represent at least 3% of the sample and present in at least 40 samples 
-carbom_abund <- filter_taxa(carbom, function(x) sum(x > total*0.03) > 40, TRUE)
-
-ig = make_network(carbom_abund, type = "samples", distance = "bray", max.dist = 0.35)
+ig = make_network(carbom_abund, type = "samples", distance = "bray", max.dist = 0.55)
 gt_network_plot <- plot_network(ig, carbom_abund, color = "date", shape = "cohort", line_weight = 0.3, 
                                 label = NULL, point_size = 1)+
   theme(legend.position = "bottom")+
@@ -427,7 +416,25 @@ gt_network_plot
 dev.off()
 
 
-########################################################################################
+##############################################
+
+
+# BAR PLOT
+
+# BAR GRAPH - by time point
+pdf(paste0(out_dir,"gt_phylo_barplot_time.pdf"))
+plot_bar(carbom_abund, fill = "phylum") +
+  geom_bar(aes(color=phylum, fill=phylum), stat="identity", position="stack") +
+  facet_grid(~date,scales="free_x") +
+  theme(axis.text.x = element_blank())
+plot_bar(carbom_abund, fill = "class") +
+  geom_bar(aes(color=class, fill=class), stat="identity", position="stack") +
+  facet_grid(~date,scales="free_x") +
+  theme(axis.text.x = element_blank())
+dev.off()
+
+
+##############################################
 
 
 # HEATMAP
@@ -436,15 +443,15 @@ dev.off()
 carbom <- phyloseq(gOTU,TAX,samples)
 # SUBSETTING phyloseq obejct
 carbom <- subset_samples(carbom, (date %in% c("t0","t2","t4","t6","t8","t10")))
+
 # RAREFY
 carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
+                           replace=TRUE,
                            rngseed = 42)
-# keep only very abundant OTUs: more than 5 counts per sample, in at least 1/4 samples 
-carbom_abund <- filter_taxa(carbom, 
-                            function(x) 
-                              sum(x > 5) > (NROW(sample_data(carbom))/4), 
-                            TRUE)
+
+# Remove taxa not seen more than 5 times in at least a 20% of the samples 
+carbom_abund <- filter_taxa(carbom, function(x) sum(x > 5) > (0.2*length(x)), TRUE)
+
 
 random_tree = rtree(ntaxa(carbom_abund), rooted=TRUE, tip.label=taxa_names(carbom_abund))
 physeq1 = merge_phyloseq(carbom_abund,random_tree)
@@ -465,108 +472,8 @@ plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE,
   facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
   theme(plot.title = element_text(hjust = 0.5)) +
   ggtitle(label = "Microbe Species Diversity")
-plot_heatmap(physeq1, 
-             taxa.label = "species", 
-             sample.order = "date") +
-  facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
-  theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle(label = "Microbe Species Diversity - log transformed data")
-plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
-             taxa.label = "genus", taxa.order="species",
-             sample.order = "date", trans=identity_trans(),
-             low="blue", high="red", na.value="white") +
-  facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
-  theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle(label = "Microbe Genus Diversity") 
-plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
-             taxa.label = "family", taxa.order="species",
-             sample.order = "date", trans=identity_trans(),
-             low="blue", high="red", na.value="white") +
-  facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
-  theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle(label = "Microbe Family Diversity") 
-plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
-             taxa.label = "order", taxa.order="species",
-             sample.order = "date", trans=identity_trans(),
-             low="blue", high="red", na.value="white") +
-  facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
-  theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle(label = "Microbe Order Diversity") 
-plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
-             taxa.label = "class", taxa.order="species",
-             sample.order = "date", trans=identity_trans(),
-             low="blue", high="red", na.value="white") +
-  facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
-  theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle(label = "Microbe Class Diversity") 
-plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
-             taxa.label = "phylum", taxa.order="species",
-             sample.order = "date", trans=identity_trans(),
-             low="blue", high="red", na.value="white") +
-  facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
-  theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle(label = "Microbe Phylum Diversity") 
 dev.off()
 
-
-##########
-
-
-# LARGE HEATMAP
-
-# NORMALIZATION BY RAREFACTION
-carbom <- phyloseq(gOTU,TAX,samples)
-# SUBSETTING phyloseq obejct
-carbom <- subset_samples(carbom, (date %in% c("t0","t2","t4","t6","t8","t10")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# keep gOTUs present in at least 1/6 of all the samples 
-carbom_abund <- filter_taxa(carbom, 
-                            function(x) 
-                              sum(x > 1) > (NROW(sample_data(carbom))/6), 
-                            TRUE)
-
-random_tree = rtree(ntaxa(carbom_abund), rooted=TRUE, tip.label=taxa_names(carbom_abund))
-physeq1 = merge_phyloseq(carbom_abund,random_tree)
-
-# HEATMAP time - genus, family, order, etc ...
-pdf(paste0(out_dir,"gt_phylo_heatmap_large.pdf"))
-plot_heatmap(physeq1, 
-             taxa.label = "species", 
-             sample.order = "date") +
-  facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
-  theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle(label = paste0("Microbe Species Diversity in the piglet population \n(log transformed data) \n (n=",
-                         NROW(tax_table(carbom_abund)),
-                         " GTDB species)"))
-dev.off()
-
-
-
-##########
-
-
-# same here but without t10 (facets mode keeps not recognizing t10 as 10!)
-# so re-done the same as above, but without t10 
-
-# NORMALIZATION BY RAREFACTION
-carbom <- phyloseq(gOTU,TAX,samples)
-# SUBSETTING phyloseq obejct
-carbom <- subset_samples(carbom, (date %in% c("t0","t2","t4","t6","t8")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# keep only very abundant OTUs: more than 5 counts per sample, in at least 1/4 samples 
-carbom_abund <- filter_taxa(carbom, 
-                            function(x) 
-                              sum(x > 5) > (NROW(sample_data(carbom))/4), 
-                            TRUE)
-
-random_tree = rtree(ntaxa(carbom_abund), rooted=TRUE, tip.label=taxa_names(carbom_abund))
-physeq1 = merge_phyloseq(carbom_abund,random_tree)
 
 # HEATMAP time - cohorts
 pdf(paste0(out_dir,"gt_phylo_heatmap_cohorts.pdf"))
@@ -585,7 +492,6 @@ plot_heatmap(physeq1,
   ggtitle(label = "Microbe Species Diversity")
 dev.off()
 
-
 ##############################################
 
 # this is a small break in between the phyloseq analysis: 
@@ -593,7 +499,7 @@ dev.off()
 # DISPLAYING MOST ABUNDANT SPECIES TIME-TREND
 
 # this is a zoom in on the species shown in phylo_heatmap because most abundant 
-# (taking gOTUs that represent at least 3% of the sample and present in at least 40 samples)
+# (taking gOTUs filtering selection from above
 
 # 1. raw data is normalized by lib size and 
 # 2. the mean is taken from bins assigned the same species
@@ -668,41 +574,32 @@ for (single_DF in multiple_DFs) {
 dev.off()
 
 
-##############################################
+
+######################
 
 
-# BAR PLOT
+# LARGE HEATMAP
+
+# Remove taxa not seen more than 1 times in at least a 20% of the samples 
+carbom_abund <- filter_taxa(carbom, function(x) sum(x > 1) > (0.2*length(x)), TRUE)
 
 
-# whether you run it with 
-# median sequencing depth normalization or rarefaction
-# output doesn t change much except the Actinobacteriota not showing when you rarefy 
-# trend is the same with either normalization method 
+random_tree = rtree(ntaxa(carbom_abund), rooted=TRUE, tip.label=taxa_names(carbom_abund))
+physeq1 = merge_phyloseq(carbom_abund,random_tree)
 
-# NORMALIZATION BY MEDIAN SEQUENCING DEPTH
-carbom <- phyloseq(gOTU,TAX,samples)
-# SUBSETTING phyloseq obejct
-carbom <- subset_samples(carbom, (date %in% c("t0","t1","t2","t3","t4","t5","t6","t7","t8","t9")))
-# Normalize number of reads in each sample using median sequencing depth.
-total = median(sample_sums(carbom))
-standf = function(x, t=total) round(t * (x / sum(x)))
-carbom = transform_sample_counts(carbom, standf)
-sample_variables(carbom)
-# keep only very abundant OTUs
-# taking gOTUs that represent at least 3% of the sample and present in at least 40 samples 
-carbom_abund <- filter_taxa(carbom, function(x) sum(x > total*0.03) > 40, TRUE)
-
-# BAR GRAPH - by time point
-pdf(paste0(out_dir,"gt_phylo_barplot_time.pdf"))
-plot_bar(carbom_abund, fill = "phylum") +
-  geom_bar(aes(color=phylum, fill=phylum), stat="identity", position="stack") +
-  facet_grid(~date,scales="free_x") +
-  theme(axis.text.x = element_blank())
-plot_bar(carbom_abund, fill = "class") +
-  geom_bar(aes(color=class, fill=class), stat="identity", position="stack") +
-  facet_grid(~date,scales="free_x") +
-  theme(axis.text.x = element_blank())
+# HEATMAP time - genus, family, order, etc ...
+pdf(paste0(out_dir,"gt_phylo_heatmap_large.pdf"))
+plot_heatmap(physeq1,
+             taxa.label = "species", 
+             sample.order = "date") +
+  facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle(label = paste0("Microbe Species Diversity in the piglet population \n(log transformed data) \n (n=",
+                         NROW(tax_table(carbom_abund)),
+                         " GTDB species)"))
 dev.off()
+
+
 
 
 ######################
@@ -722,12 +619,6 @@ gt_diversity_samples <- plot_richness(carbom, measures=c("Chao1","Shannon", "ACE
                                       color="date", x="date") +
   guides(colour = guide_legend(nrow = 1))+
   theme(legend.position="top")
-
-
-pdf(paste0(out_dir,"gt_phylo_diversity.pdf"))
-gt_diversity_samples
-dev.off()
-
 
 ######### plotting above results in a different way: 
 # focus on three measures;
@@ -825,10 +716,11 @@ carbom <- subset_samples(carbom, (cohort %in% c("Control")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 ctrlt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
                           title="Control") + 
@@ -842,10 +734,9 @@ carbom <- subset_samples(carbom, (cohort %in% c("Control")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 ctrlt8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
                           title="Control") + 
@@ -861,10 +752,9 @@ carbom <- subset_samples(carbom, (cohort %in% c("D-Scour")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 dscourt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
                             title="D-Scour") + 
@@ -878,10 +768,9 @@ carbom <- subset_samples(carbom, (cohort %in% c("D-Scour")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 dscourt8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
                             title="D-Scour") + 
@@ -897,10 +786,9 @@ carbom <- subset_samples(carbom, (cohort %in% c("ColiGuard")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 coligt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
                            title="ColiGuard") + 
@@ -914,10 +802,9 @@ carbom <- subset_samples(carbom, (cohort %in% c("ColiGuard")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 coligt8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
                            title="ColiGuard") + 
@@ -933,10 +820,9 @@ carbom <- subset_samples(carbom, (cohort %in% c("Neomycin")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 neot0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
                          title="Neomycin") + 
@@ -950,10 +836,9 @@ carbom <- subset_samples(carbom, (cohort %in% c("Neomycin")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 neot8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
                          title="Neomycin") + 
@@ -969,10 +854,9 @@ carbom <- subset_samples(carbom, (cohort %in% c("NeoD")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 neoDt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
                           title="NeoD") + 
@@ -986,10 +870,9 @@ carbom <- subset_samples(carbom, (cohort %in% c("NeoD")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 neoDt8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
                           title="NeoD") + 
@@ -1005,10 +888,9 @@ carbom <- subset_samples(carbom, (cohort %in% c("NeoC")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 neoCt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
                           title="NeoC") + 
@@ -1022,10 +904,9 @@ carbom <- subset_samples(carbom, (cohort %in% c("NeoC")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 
 neoCt8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
@@ -1256,10 +1137,9 @@ carbom <- subset_samples(carbom, (date %in% c("t0")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 a_t0 <- plot_ordination(carbom, carbom.ord, type="samples", color="birth_day") + 
   geom_point(size=2)  +
@@ -1277,10 +1157,9 @@ carbom <- subset_samples(carbom, (date %in% c("t2")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 a_t2 <- plot_ordination(carbom, carbom.ord, type="samples", color="birth_day") + 
   geom_point(size=2)  +
@@ -1294,10 +1173,9 @@ carbom <- subset_samples(carbom, (date %in% c("t4")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 a_t4 <- plot_ordination(carbom, carbom.ord, type="samples", color="birth_day") + 
   geom_point(size=2)  +
@@ -1325,10 +1203,9 @@ carbom <- subset_samples(carbom, (breed %in% c("DxL")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 s_t0 <- plot_ordination(carbom, carbom.ord, type="samples", color="birth_day") + 
   geom_point(size=2)  +
@@ -1348,10 +1225,9 @@ carbom <- subset_samples(carbom, (breed %in% c("DxL")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 s_t2 <- plot_ordination(carbom, carbom.ord, type="samples", color="birth_day") + 
   geom_point(size=2)  +
@@ -1368,10 +1244,9 @@ carbom <- subset_samples(carbom, (breed %in% c("DxL")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 s_t4 <- plot_ordination(carbom, carbom.ord, type="samples", color="birth_day") + 
   geom_point(size=2)  +
@@ -1454,10 +1329,9 @@ carbom <- subset_samples(carbom, (date %in% c("t0")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 p_t0 <- plot_ordination(carbom, carbom.ord, type="samples", color="breed") + 
   geom_point(size=2)  +
@@ -1473,10 +1347,9 @@ carbom <- subset_samples(carbom, (date %in% c("t2")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 p_t2 <- plot_ordination(carbom, carbom.ord, type="samples", color="breed") + 
   geom_point(size=2)  +
@@ -1491,10 +1364,9 @@ carbom <- subset_samples(carbom, (date %in% c("t4")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 p_t4 <- plot_ordination(carbom, carbom.ord, type="samples", color="breed") + 
   geom_point(size=2)  +
@@ -1521,10 +1393,9 @@ carbom <- subset_samples(carbom, (birth_day %in% c("2017-01-08")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 s_t0 <- plot_ordination(carbom, carbom.ord, type="samples", color="breed") + 
   geom_point(size=2)  +
@@ -1546,10 +1417,9 @@ carbom <- subset_samples(carbom, (birth_day %in% c("2017-01-08")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 s_t2 <- plot_ordination(carbom, carbom.ord, type="samples", color="breed") + 
   geom_point(size=2)  +
@@ -1567,10 +1437,9 @@ carbom <- subset_samples(carbom, (birth_day %in% c("2017-01-08")))
 carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
-carbom <- filter_taxa(carbom, 
-                      function(x) 
-                        sum(x > 10) > (NROW(sample_data(carbom))/2), 
-                      TRUE)
+# Remove taxa not seen more than 10 times in at least a 50% of the samples 
+carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
+
 carbom.ord <- ordinate(carbom, "PCoA", "bray")
 s_t4 <- plot_ordination(carbom, carbom.ord, type="samples", color="breed") + 
   geom_point(size=2)  +

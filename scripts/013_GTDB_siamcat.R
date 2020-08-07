@@ -590,9 +590,9 @@ fold_changes_plot <- z %>%
   dplyr::select(comparison,positive,negative) %>%
   dplyr::distinct() %>%
   pivot_longer(., cols=c("negative","positive")) %>%
-  mutate(name = factor(name, levels = c("positive", "negative"))) %>%
+  dplyr::mutate(name = factor(name, levels = c("positive", "negative"))) %>%
   group_by(comparison) %>%
-  mutate(prop=paste0(round(value/sum(value)*100),"%")) %>%
+  dplyr::mutate(prop=paste0(round(value/sum(value)*100),"%")) %>%
   ggplot(., aes(x=comparison,y=value,fill=name))+
   geom_bar(stat="identity", position="dodge")+
   theme_minimal()+

@@ -237,9 +237,9 @@ total = median(sample_sums(carbom))
 standf = function(x, t=total) round(t * (x / sum(x)))
 carbom = transform_sample_counts(carbom, standf)
 sample_variables(carbom)
-# keep only very abundant OTUs
-# taking gOTUs that represent at least 3% of the sample and present in at least 40 samples 
-carbom_abund <- filter_taxa(carbom, function(x) sum(x > total*0.03) > 40, TRUE)
+
+# Remove taxa not seen more than 10 times in at least a 30% of the samples 
+carbom_abund <- filter_taxa(carbom, function(x) sum(x > 10) > (0.3*length(x)), TRUE)
 
 carbom_abund.ord <- ordinate(carbom_abund, "NMDS", "bray")
 
@@ -260,20 +260,7 @@ dev.off()
 
 # NETWORK ANALYSIS 
 
-# NORMALIZATION BY MEDIAN SEQUENCING DEPTH
-carbom <- phyloseq(gOTU,TAX,samples)
-# SUBSETTING phyloseq obejct
-carbom <- subset_samples(carbom, (date %in% c("t0","t1","t2","t3","t4","t5","t6","t7","t8","t9")))
-# Normalize number of reads in each sample using median sequencing depth.
-total = median(sample_sums(carbom))
-standf = function(x, t=total) round(t * (x / sum(x)))
-carbom = transform_sample_counts(carbom, standf)
-sample_variables(carbom)
-# keep only very abundant OTUs
-# taking gOTUs that represent at least 3% of the sample and present in at least 40 samples 
-carbom_abund <- filter_taxa(carbom, function(x) sum(x > total*0.03) > 40, TRUE)
-
-ig = make_network(carbom_abund, type = "samples", distance = "bray", max.dist = 0.25)
+ig = make_network(carbom_abund, type = "samples", distance = "bray", max.dist = 0.35)
 cm_network_plot <- plot_network(ig, carbom_abund, color = "date", shape = "cohort", line_weight = 0.3, 
                                   label = NULL, point_size = 1)+
   theme(legend.position = "bottom")+
@@ -288,25 +275,6 @@ dev.off()
 
 
 # BAR PLOT
-
-
-# whether you run it with 
-# median sequencing depth normalization or rarefaction
-# output doesn t change much except the Actinobacteriota not showing when you rarefy 
-# trend is the same with either normalization method 
-
-# NORMALIZATION BY MEDIAN SEQUENCING DEPTH
-carbom <- phyloseq(gOTU,TAX,samples)
-# SUBSETTING phyloseq obejct
-carbom <- subset_samples(carbom, (date %in% c("t0","t1","t2","t3","t4","t5","t6","t7","t8","t9")))
-# Normalize number of reads in each sample using median sequencing depth.
-total = median(sample_sums(carbom))
-standf = function(x, t=total) round(t * (x / sum(x)))
-carbom = transform_sample_counts(carbom, standf)
-sample_variables(carbom)
-# keep only very abundant OTUs
-# taking gOTUs that represent at least 3% of the sample and present in at least 40 samples 
-carbom_abund <- filter_taxa(carbom, function(x) sum(x > total*0.03) > 40, TRUE)
 
 # BAR GRAPH - by time point
 pdf(paste0(out_dir,"cm_phylo_barplot_time.pdf"))
@@ -338,11 +306,9 @@ carbom = rarefy_even_depth(carbom,
                            replace=TRUE, 
                            rngseed = 42)
 
-# keep only very abundant OTUs: more than 5 counts per sample, in at least 1/4 samples 
-carbom_abund <- filter_taxa(carbom, 
-                            function(x) 
-                              sum(x > 5) > (NROW(sample_data(carbom))/4), 
-                            TRUE)
+# Remove taxa not seen more than 5 times in at least a 20% of the samples 
+carbom_abund <- filter_taxa(carbom, function(x) sum(x > 5) > (0.2*length(x)), TRUE)
+
 
 random_tree = rtree(ntaxa(carbom_abund), rooted=TRUE, tip.label=taxa_names(carbom_abund))
 physeq1 = merge_phyloseq(carbom_abund,random_tree)

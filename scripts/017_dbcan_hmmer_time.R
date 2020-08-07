@@ -475,7 +475,7 @@ NROW(unique(df_part_GH$enzymeID))
 list_GH_1 <- unique(df_part_GH$enzymeID)[1:25]
 list_GH_2 <- unique(df_part_GH$enzymeID)[26:50]
 list_GH_3 <- unique(df_part_GH$enzymeID)[51:75]
-list_GH_4 <- unique(df_part_GH$enzymeID)[76:105]
+list_GH_4 <- unique(df_part_GH$enzymeID)[76:107]
 df_part1_GH <- subset(df_part_GH, (enzymeID %in% list_GH_1))
 df_part2_GH <- subset(df_part_GH, (enzymeID %in% list_GH_2))
 df_part3_GH <- subset(df_part_GH, (enzymeID %in% list_GH_3))
@@ -485,7 +485,7 @@ df_part4_GH <- subset(df_part_GH, (enzymeID %in% list_GH_4))
 df_part_CBM <- subset(df_part, (enzymeNAME %in% "CBM"))
 NROW(unique(df_part_CBM$enzymeID))
 list_CBM_1 <- unique(df_part_CBM$enzymeID)[1:14]
-list_CBM_2 <- unique(df_part_CBM$enzymeID)[15:29]
+list_CBM_2 <- unique(df_part_CBM$enzymeID)[15:30]
 df_part1_CBM <- subset(df_part_CBM, (enzymeID %in% list_CBM_1))
 df_part2_CBM <- subset(df_part_CBM, (enzymeID %in% list_CBM_2))
 
