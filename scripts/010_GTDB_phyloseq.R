@@ -21,6 +21,9 @@ library(openxlsx)
 library(purrr)
 library(broom)
 
+library(cowplot)
+library(ggsci)
+
 
 source_dir = "/Users/12705859/metapigs_dry/source_data/" # git 
 middle_dir = "/Users/12705859/metapigs_dry/middle_dir/" # git 
@@ -1126,390 +1129,216 @@ fwrite(x=weight_stats, file = paste0(out_dir_git,"gtdb_weight.csv"), sep = ",")
 ######################################################################
 
 
-# ordination - AGE (birth_day) : 
-
-# age effect - all piglets 
-
-# t0
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t0")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
-
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-a_t0 <- plot_ordination(carbom, carbom.ord, type="samples", color="birth_day") + 
-  geom_point(size=2)  +
-  theme_bw() +
-  theme(legend.position = "none") +
-  ggtitle(paste0(sample_data(carbom)$date)[1])
-
-dummy_all <- plot_ordination(carbom, carbom.ord, type="samples", color="birth_day") + 
-  geom_point(size=2)  +
-  theme_bw() 
-# t2
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t2")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
-
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-a_t2 <- plot_ordination(carbom, carbom.ord, type="samples", color="birth_day") + 
-  geom_point(size=2)  +
-  theme_bw() +
-  theme(legend.position = "none") +
-  ggtitle(paste0(sample_data(carbom)$date)[1])
-# t4
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t4")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
-
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-a_t4 <- plot_ordination(carbom, carbom.ord, type="samples", color="birth_day") + 
-  geom_point(size=2)  +
-  theme_bw() +
-  theme(legend.position = "none") +
-  ggtitle(paste0(sample_data(carbom)$date)[1])
 
 
-###########
+# BREED
 
-leg_all <- get_legend(dummy_all)
-all_age_and_breed <- ggdplyr::arrange(a_t0,a_t2,a_t4,leg_all)
-
-
-######################
-
-# age effect - subset
-
-# t0
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t0")))
-carbom <- subset_samples(carbom, (birth_day %in% c("2017-01-08","2017-01-11")))
-carbom <- subset_samples(carbom, (breed %in% c("DxL")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
-
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-s_t0 <- plot_ordination(carbom, carbom.ord, type="samples", color="birth_day") + 
-  geom_point(size=2)  +
-  theme_bw() +
-  theme(legend.position = "none") +
-  ggtitle(paste0(sample_data(carbom)$date)[1])+
-  facet_wrap(~breed)
-dummy_subset <- plot_ordination(carbom, carbom.ord, type="samples", color="birth_day") + 
-  geom_point(size=2)  +
-  theme_bw() 
-# t2
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t2")))
-carbom <- subset_samples(carbom, (birth_day %in% c("2017-01-08","2017-01-11")))
-carbom <- subset_samples(carbom, (breed %in% c("DxL")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
-
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-s_t2 <- plot_ordination(carbom, carbom.ord, type="samples", color="birth_day") + 
-  geom_point(size=2)  +
-  theme_bw() +
-  theme(legend.position = "none") +
-  ggtitle(paste0(sample_data(carbom)$date)[1])+
-  facet_wrap(~breed)
-# t4
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t4")))
-carbom <- subset_samples(carbom, (birth_day %in% c("2017-01-08","2017-01-11")))
-carbom <- subset_samples(carbom, (breed %in% c("DxL")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
-
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-s_t4 <- plot_ordination(carbom, carbom.ord, type="samples", color="birth_day") + 
-  geom_point(size=2)  +
-  theme_bw() +
-  theme(legend.position = "none") +
-  ggtitle(paste0(sample_data(carbom)$date)[1])+
-  facet_wrap(~breed)
-
-
-###########
-
-leg_subset <- get_legend(dummy_subset)
-all_subset <- ggarrange(s_t0,s_t2,s_t4,leg_subset)
-
-###########
-
-pdf(paste0(out_dir,"gt_phylo_ordination_age.pdf"))
-#all_age_and_breed
-all_subset
-dev.off()
-
-###########
-
-# stats
-
-# function to test correlation with Dunn.test
-
-age_function <- function(myd){
-    
-    x_axis1 <- dunnTest(myd$Axis.1~birth_day,data=myd,method = "bonferroni")
-    x_axis1 <- as.data.frame(x_axis1$res)
-    x_axis1$axis = "Axis.1"
-    
-    x_axis2 <- dunnTest(myd$Axis.2~birth_day,data=myd,method = "bonferroni")
-    x_axis2 <- as.data.frame(x_axis2$res)
-    x_axis2$axis = "Axis.2"
-    
-    x <- rbind(x_axis1,x_axis2) 
-    x$group <- as.character(a_t2$data$date[1])
-    
-    x <- as.data.frame(x)
+breed_corr_plot <- function(ccc) {
+  
+  # RAREFY
+  ccc = rarefy_even_depth(ccc,
+                          replace=TRUE, 
+                          rngseed = 42)
+  
+  # Remove taxa not seen more than 2 times in at least a 20% of the samples 
+  ccc_abund <- filter_taxa(ccc, function(x) sum(x > 2) > (0.2*length(x)), TRUE)
+  
+  ccc.ord <- ordinate(ccc_abund, "PCoA", "bray")
+  
+  the_breed_plot <- plot_ordination(ccc_abund, ccc.ord, type="samples", color="breed") + 
+    geom_point(size=1)  +
+    theme_bw() +
+    theme(legend.position = "bottom",
+          axis.text.x=element_text(size = 6),
+          axis.text.y=element_text(size = 6),
+          axis.title.x=element_text(size = 8),
+          axis.title.y=element_text(size = 8),
+          strip.text = element_text(size=8)) +
+    ggtitle(paste0(sample_data(ccc_abund)$date)[1])+
+    facet_wrap(~birth_day) +
+    scale_color_brewer(palette = "Dark2")+
+    guides(col = guide_legend(nrow = 4, title.position = "top"))
+  return(the_breed_plot)
 }
 
-out1 <- age_function(a_t0$data)
-out1$group_analyzed = "all"
-out2 <- age_function(a_t2$data)
-out2$group_analyzed = "all"
-out3 <- age_function(a_t4$data)
-out3$group_analyzed = "all"
-out4 <- age_function(s_t0$data)
-out4$group_analyzed = "subset"
-out5 <- age_function(s_t2$data)
-out5$group_analyzed = "subset"
-out6 <- age_function(s_t4$data)
-out6$group_analyzed = "subset"
 
-
-age_stats <- rbind(out1,out2,out3,out4,out5,out6)
-
-age_stats$test = "Dunn.test"
-age_stats$correction = "Bonferroni"
-
-# save 
-fwrite(x=age_stats, file = paste0(out_dir_git,"gtdb_age.csv"), sep = ",")
-
-
-######################################################################
-######################################################################
-
-
-# ordination - BREED : 
-
-
-#######
-
-# t0
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t0")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
-
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-p_t0 <- plot_ordination(carbom, carbom.ord, type="samples", color="breed") + 
-  geom_point(size=2)  +
-  theme_bw() +
-  theme(legend.position = "none") +
-  ggtitle(paste0(sample_data(carbom)$date)[1])+
-  facet_wrap(~birth_day)
-dummy_all <- plot_ordination(carbom, carbom.ord, type="samples", color="breed")
-# t2
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t2")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
-
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-p_t2 <- plot_ordination(carbom, carbom.ord, type="samples", color="breed") + 
-  geom_point(size=2)  +
-  theme_bw() +
-  theme(legend.position = "none") +
-  ggtitle(paste0(sample_data(carbom)$date)[1])+
-  facet_wrap(~birth_day)
-# t4
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t4")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
-
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-p_t4 <- plot_ordination(carbom, carbom.ord, type="samples", color="breed") + 
-  geom_point(size=2)  +
-  theme_bw() +
-  theme(legend.position = "none") +
-  ggtitle(paste0(sample_data(carbom)$date)[1])+
-  facet_wrap(~birth_day)
-
-###########
-
-leg_all <- get_legend(dummy_all)
-all_breed <- ggarrange(p_t0,p_t2,p_t4,leg_all)
-
-######################
-
-# age effect - subset
-
-# t0
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t0")))
-carbom <- subset_samples(carbom, (breed %in% c("DxL","DxLW")))
-carbom <- subset_samples(carbom, (birth_day %in% c("2017-01-08")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
-
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-s_t0 <- plot_ordination(carbom, carbom.ord, type="samples", color="breed") + 
-  geom_point(size=2)  +
-  theme_bw() +
-  theme(legend.position = "none") +
-  ggtitle(paste0(sample_data(carbom)$date)[1])+
-  facet_wrap(~birth_day)+
-  scale_color_manual(values=c("#E69F00", "green"))
-dummy_subset <- plot_ordination(carbom, carbom.ord, type="samples", color="breed") + 
-  geom_point(size=2)  +
-  theme_bw() +
-  scale_color_manual(values=c("#E69F00", "green"))
-# t2
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t2")))
-carbom <- subset_samples(carbom, (breed %in% c("DxL","DxLW")))
-carbom <- subset_samples(carbom, (birth_day %in% c("2017-01-08")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
-
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-s_t2 <- plot_ordination(carbom, carbom.ord, type="samples", color="breed") + 
-  geom_point(size=2)  +
-  theme_bw() +
-  theme(legend.position = "none") +
-  ggtitle(paste0(sample_data(carbom)$date)[1])+
-  facet_wrap(~birth_day) +
-  scale_color_manual(values=c("#E69F00", "green"))
-# t4
-carbom <- phyloseq(gOTU,TAX,samples)
-carbom <- subset_samples(carbom, (date %in% c("t4")))
-carbom <- subset_samples(carbom, (breed %in% c("DxL","DxLW")))
-carbom <- subset_samples(carbom, (birth_day %in% c("2017-01-08")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
-
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-s_t4 <- plot_ordination(carbom, carbom.ord, type="samples", color="breed") + 
-  geom_point(size=2)  +
-  theme_bw() +
-  theme(legend.position = "none") +
-  ggtitle(paste0(sample_data(carbom)$date)[1])+
-  facet_wrap(~birth_day) +
-  scale_color_manual(values=c("#E69F00", "green"))
-
-
-###########
-
-leg_subset <- get_legend(dummy_subset)
-breed_subset <- ggarrange(s_t0,s_t2,s_t4,leg_subset)
-
-###########
-
-pdf(paste0(out_dir,"gt_phylo_ordination_breed.pdf"))
-all_breed
-breed_subset
-dev.off()
-
-
-
-# function to test correlation with Dunn.test
-
-breed_function <- function(myd){
+breed_corr_stats <- function(ccc) {
   
-  x_axis1 <- dunnTest(myd$Axis.1~breed,data=myd,method = "bonferroni")
+  # RAREFY
+  ccc = rarefy_even_depth(ccc,
+                          replace=TRUE, 
+                          rngseed = 42)
+  
+  # Remove taxa not seen more than 2 times in at least a 20% of the samples 
+  ccc_abund <- filter_taxa(ccc, function(x) sum(x > 2) > (0.2*length(x)), TRUE)
+  
+  ccc.ord <- ordinate(ccc_abund, "PCoA", "bray")
+  
+  myd <- plot_ordination(ccc_abund, ccc.ord, type="samples", color="breed") 
+  
+  x_axis1 <- dunnTest(myd$data$Axis.1~myd$data$breed,data=myd$data,method = "bonferroni")
   x_axis1 <- as.data.frame(x_axis1$res)
   x_axis1$axis = "Axis.1"
   
-  x_axis2 <- dunnTest(myd$Axis.2~breed,data=myd,method = "bonferroni")
+  x_axis2 <- dunnTest(myd$data$Axis.2~myd$data$breed,data=myd$data,method = "bonferroni")
   x_axis2 <- as.data.frame(x_axis2$res)
   x_axis2$axis = "Axis.2"
   
-  x <- rbind(x_axis1,x_axis2)
+  x <- rbind(x_axis1,x_axis2) 
+  x$group <- as.character(myd$data$date[1])
   
+  x <- as.data.frame(x)
+  
+  return(x)
 }
 
-out1 <- breed_function(p_t0$data)
-out1$group = "t0"
-out1$group_analyzed = "all"
-out2 <- breed_function(p_t2$data)
-out2$group = "t2"
-out2$group_analyzed = "all"
-out3 <- breed_function(p_t4$data)
-out3$group = "t4"
-out3$group_analyzed = "all"
-out4 <- breed_function(s_t0$data)
-out4$group = "t0"
-out4$group_analyzed = "subset"
-out5 <- breed_function(s_t2$data)
-out5$group = "t2"
-out5$group_analyzed = "subset"
-out6 <- breed_function(s_t4$data)
-out6$group = "t4"
-out6$group_analyzed = "subset"
+########
 
+age_breed_plot_t0 <- breed_corr_plot(subset_samples(phyloseq(gOTU,TAX,samples), (date %in% c("t0"))))
+age_breed_plot_t2 <- breed_corr_plot(subset_samples(phyloseq(gOTU,TAX,samples), (date %in% c("t2"))))
+age_breed_plot_t4 <- breed_corr_plot(subset_samples(phyloseq(gOTU,TAX,samples), (date %in% c("t4"))))
 
-breed_stats <- rbind(out1,out2,out3,out4,out5,out6)
+all_breed_and_age_plot <- ggarrange(age_breed_plot_t0, 
+                                    age_breed_plot_t2, 
+                                    age_breed_plot_t4, 
+                                    common.legend=TRUE,
+                                    nrow=3)
 
+########
+breed_subset <- subset_samples(carbom, (breed %in% c("DxL","DxLW") & birth_day %in% c("2017-01-08")))
+# plots
+breed_plot_t0 <- breed_corr_plot(subset_samples(breed_subset, (date %in% c("t0"))))
+breed_plot_t2 <- breed_corr_plot(subset_samples(breed_subset, (date %in% c("t2"))))
+breed_plot_t4 <- breed_corr_plot(subset_samples(breed_subset, (date %in% c("t4"))))
+
+breed_plot_all <- ggarrange(breed_plot_t0, 
+                            breed_plot_t2,
+                            breed_plot_t4,
+                            common.legend=TRUE,
+                            nrow=3)
+########
+
+# stats
+breed_stats <- rbind(breed_corr_stats(subset_samples(breed_subset, (date %in% c("t0")))),
+                     breed_corr_stats(subset_samples(breed_subset, (date %in% c("t2")))),
+                     breed_corr_stats(subset_samples(breed_subset, (date %in% c("t4")))))
+
+breed_stats$subgroup <- "bday_20170108"
 breed_stats$test = "Dunn.test"
 breed_stats$correction = "Bonferroni"
 
-
-# save 
 fwrite(x=breed_stats, file = paste0(out_dir_git,"gtdb_breed.csv"), sep = ",")
 
 
+######################################################################
+
+
+
+# AGE
+
+age_corr_plot <- function(ccc) {
+  
+  # RAREFY
+  ccc = rarefy_even_depth(ccc,
+                          replace=TRUE, 
+                          rngseed = 42)
+  
+  # Remove taxa not seen more than 2 times in at least a 20% of the samples 
+  ccc_abund <- filter_taxa(ccc, function(x) sum(x > 2) > (0.2*length(x)), TRUE)
+  
+  ccc.ord <- ordinate(ccc_abund, "PCoA", "bray")
+  
+  the_age_plot <- plot_ordination(ccc_abund, ccc.ord, type="samples", color="birth_day") + 
+    geom_point(size=1)  +
+    theme_bw() +
+    theme(legend.position = "bottom",
+          axis.text.x=element_text(size = 6),
+          axis.text.y=element_text(size = 6),
+          axis.title.x=element_text(size = 8),
+          axis.title.y=element_text(size = 8),
+          strip.text = element_text(size=8)) +
+    ggtitle(paste0(sample_data(ccc_abund)$date)[1])+
+    facet_wrap(~breed) +
+    scale_color_jco()+
+    guides(col = guide_legend(nrow = 4, title.position = "top"))
+  
+  return(the_age_plot)
+}
+
+age_corr_stats <- function(ccc) {
+  
+  # RAREFY
+  ccc = rarefy_even_depth(ccc,
+                          replace=TRUE, 
+                          rngseed = 42)
+  
+  # Remove taxa not seen more than 2 times in at least a 20% of the samples 
+  ccc_abund <- filter_taxa(ccc, function(x) sum(x > 2) > (0.2*length(x)), TRUE)
+  
+  ccc.ord <- ordinate(ccc_abund, "PCoA", "bray")
+  
+  myd <- plot_ordination(ccc_abund, ccc.ord, type="samples", color="birth_day") 
+  
+  x_axis1 <- dunnTest(myd$data$Axis.1~myd$data$birth_day,data=myd$data,method = "bonferroni")
+  x_axis1 <- as.data.frame(x_axis1$res)
+  x_axis1$axis = "Axis.1"
+  
+  x_axis2 <- dunnTest(myd$data$Axis.2~myd$data$birth_day,data=myd$data,method = "bonferroni")
+  x_axis2 <- as.data.frame(x_axis2$res)
+  x_axis2$axis = "Axis.2"
+  
+  x <- rbind(x_axis1,x_axis2) 
+  x$group <- as.character(myd$data$date[1])
+  
+  x <- as.data.frame(x)
+  
+  return(x)
+}
+
+
+age_subset <- subset_samples(carbom, (birth_day %in% c("2017-01-08","2017-01-11") & breed %in% c("DxL")))
+# plots
+age_plot_t0 <- age_corr_plot(subset_samples(age_subset, (date %in% c("t0"))))
+age_plot_t2 <- age_corr_plot(subset_samples(age_subset, (date %in% c("t2"))))
+age_plot_t4 <- age_corr_plot(subset_samples(age_subset, (date %in% c("t4"))))
+
+age_plot_all <- ggarrange(age_plot_t0,
+                          age_plot_t2,
+                          age_plot_t4,
+                          common.legend=TRUE,
+                          nrow=3)
+
+########
+
+# stats
+age_stats <- rbind(age_corr_stats(subset_samples(age_subset, (date %in% c("t0")))),
+                   age_corr_stats(subset_samples(age_subset, (date %in% c("t2")))),
+                   age_corr_stats(subset_samples(age_subset, (date %in% c("t4")))))
+
+age_stats$subgroup <- "breed_DxL"
+age_stats$test = "Dunn.test"
+age_stats$correction = "Bonferroni"
+
+fwrite(x=age_stats, file = paste0(out_dir_git,"gtdb_age.csv"), sep = ",")
+
+
+########
+
+# arrange all plots in one pdf
+
+all_plotties <- plot_grid(
+  all_breed_and_age_plot, 
+  age_plot_all,
+  breed_plot_all,
+  ncol=3,nrow=1,
+  rel_widths = c(5,2.5,2.5), labels = c("A","B","C")
+)
+
+pdf(paste0(out_dir,"gt_phylo_ordination_breed&age.pdf"))
+all_plotties
+dev.off()
+
+#############################################
 
 age_stats_sign <- age_stats %>%
   dplyr::select(P.adj,group_analyzed,group,Comparison) %>%

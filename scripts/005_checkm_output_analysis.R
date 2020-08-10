@@ -358,6 +358,14 @@ ggplot(data=az3, mapping=aes(x=`number of timepoints per subject`, y=`number of 
         axis.text.y=element_text(size=14))
 dev.off()
 
+###
+# correlation between time points and number of bins obtained per subject 
+# using spearman as variables are not normally distributed 
+res <- cor.test(az3$`number of metagenomes per subject`, az3$`number of timepoints per subject`, 
+                method = c("spearman")) #, "kendall", "spearman"
+res$estimate^2
+###
+
 az4 <- az3 %>%
   group_by(`number of timepoints per subject`) %>%
   dplyr::summarise(`mean_bins`= mean(`number of metagenomes per subject`),
