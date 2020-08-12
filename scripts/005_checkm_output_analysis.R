@@ -544,20 +544,20 @@ paste0("Nearly complete genomes, scaffolds N50 stats :   ")
 summary(df_90100_5$`N50 (scaffolds)`)
 sink()
 
-pdf(paste0(out_dir,"cm_scaffolds_distribution.pdf"))
+pdf(paste0(out_dir,"cm_scaffolds_distribution.pdf"), height=4, width=5)
 # Distribution of contig number across bins 
 ggplot(df_90100_5, 
        aes(x = `N50 (scaffolds)`)) + 
   geom_histogram(bins = 100, colour="black",fill="white") + 
   scale_x_log10() +
-  ggtitle("Distribution of N50 (scaffolds) across nearly complete genomes") +
-  labs(x = "N50 (scaffolds)",
+  ggtitle("Distribution of scaffold N50 across nearly complete genomes") +
+  labs(x = "scaffold N50",
        y = "Frequency")+
   theme_bw()+
   theme(axis.title.x=element_text(size=14),
         axis.text.x=element_text(size=12),
         axis.title.y=element_text(size=14),
-        axis.text.y=element_text(size=12))
+        axis.text.y=element_text(size=12), title = element_text(size=8))
 dev.off()
 
 

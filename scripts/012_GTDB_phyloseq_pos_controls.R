@@ -55,6 +55,7 @@ gtdbtk_bins <- read_csv(paste0(middle_dir,"gtdb_bins_completeTaxa"),
 
 head(gtdbtk_bins)
 
+
 ######################################################################
 
 
@@ -74,7 +75,7 @@ df$gOTU <- paste0("gOTU_",df$gOTU)
 NROW(unique(df$gOTU))
 NROW(df)
 
-# change Protexin with D-Scour
+# change Protexin with D-Scour (it's the same thing, but for consistency we keep one and the same name)
 df$pig <- gsub("Protexin","D-Scour", df$pig)
 
 
@@ -198,6 +199,11 @@ carbom = transform_sample_counts(carbom, standf)
 sample_variables(carbom)
 
 ############################################################################################################
+
+# removing these because these replicates don't exist 
+carbom <- subset_samples(carbom, sample!="ColiGuard_R9")
+carbom <- subset_samples(carbom, sample!="D-Scour_R9")
+
 
 # PLOT
 
@@ -341,8 +347,8 @@ myfun <- function(single_pos_control_df,palette_type) {
 }
 
 df_sub1 <- df %>% dplyr::filter(pig=="MockCommunity")
-df_sub2 <- df %>% dplyr::filter(pig=="D-Scour")
-df_sub3 <- df %>% dplyr::filter(pig=="ColiGuard")
+df_sub2 <- df %>% dplyr::filter(pig=="D-Scour") %>% dplyr::filter(!variable=="R9")
+df_sub3 <- df %>% dplyr::filter(pig=="ColiGuard") %>% dplyr::filter(!variable=="R9")
 
 
 plot1 <- myfun(df_sub1,as.character("Paired"))  

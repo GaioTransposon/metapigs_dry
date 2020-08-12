@@ -467,14 +467,14 @@ plot_heatmap(physeq1,
              sample.order = "date") +
   facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
   theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle(label = "Microbe Species Diversity - log transformed data")
+  ggtitle(label = paste0("Diversity of GTDB-predicted species in the piglet population"))
 plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
              taxa.label = "species", taxa.order="species",
              sample.order = "date", trans=identity_trans(),
              low="blue", high="red", na.value="white") +
   facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
   theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle(label = "Microbe Species Diversity")
+  ggtitle(label = paste0("Diversity of GTDB-predicted species in the piglet population"))
 dev.off()
 
 
@@ -492,7 +492,7 @@ plot_heatmap(physeq1,
              sample.order = "date") +
   facet_wrap(~ cohort, switch = "x", scales = "free_x")+
   theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle(label = "Microbe Species Diversity")
+  ggtitle(label = paste0("Diversity of GTDB-predicted species in the piglet population"))
 dev.off()
 
 ##############################################
@@ -597,9 +597,9 @@ plot_heatmap(physeq1,
              sample.order = "date") +
   facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
   theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle(label = paste0("Microbe Species Diversity in the piglet population \n(log transformed data) \n (n=",
-                         NROW(tax_table(carbom_abund)),
-                         " GTDB species)"))
+  ggtitle(label = paste0("Diversity of GTDB-predicted species in the piglet population")) # \n
+                         #NROW(tax_table(carbom_abund)),
+                         #" GTDB species)"))
 dev.off()
 
 
