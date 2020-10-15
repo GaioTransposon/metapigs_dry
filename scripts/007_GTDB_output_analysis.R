@@ -41,8 +41,7 @@ gtdbtk_bins <- read_csv(paste0(middle_dir,"gtdb_bins_completeTaxa"),
                         col_types = cols(node = col_character(),
                                          pig = col_character()))
 
-
-head(gtdbtk_bins)
+#z<- gtdbtk_bins %>% filter(genus=="Prevotella") %>% group_by(species) %>% tally()
 
 ######################################################################
 
