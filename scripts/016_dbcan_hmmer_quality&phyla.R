@@ -122,6 +122,7 @@ gt_hmmer$phylum[is.na(gt_hmmer$phylum)] <- "Unknown"
 
 gt_hmmer <- as.data.frame(gt_hmmer)
 
+# NROW(unique(gt_hmmer$species))
 ##########################################################
 
 

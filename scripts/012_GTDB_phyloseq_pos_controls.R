@@ -55,7 +55,7 @@ gtdbtk_bins <- read_csv(paste0(middle_dir,"gtdb_bins_completeTaxa"),
 
 head(gtdbtk_bins)
 
-
+#NROW(unique(gtdbtk_bins$species))
 ######################################################################
 
 
