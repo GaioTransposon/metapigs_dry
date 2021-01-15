@@ -32,7 +32,7 @@ df1 <- df1 %>%
 
 # move bin column as first (might be useful at later stages)
 df1 <- df1 %>%
-  select(bin, everything())
+  dplyr::select(bin, everything())
 
 # # get the column names before entering function
 # original_colnames <- colnames(df1)
