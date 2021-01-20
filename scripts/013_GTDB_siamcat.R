@@ -13,6 +13,9 @@ library(readxl)
 library(ggpubr)
 library(forcats)
 library(data.table)
+library(gmodels)
+
+
 
 source_dir = "/Users/12705859/metapigs_dry/source_data/" # git 
 middle_dir = "/Users/12705859/metapigs_dry/middle_dir/" # git 
@@ -781,4 +784,48 @@ fwrite(x=both, file=paste0(out_dir_git,"gt_siamcat_breed.csv"), sep = ",")
 
 ############################################################################################################################################
 ############################################################################################################################################
+
+# as Amy suggested to add confidence intervals for major shifts mentioned in manuscript ... 
+
+
+df4 <- cSplit(df3, "gOTU", "__", drop = FALSE)
+
+keep <- c("Blautia_A wexlerae",
+          "CAG-83 sp003487665",
+          "Lactobacillus amylovorus", 
+          "CAG-45 sp002299665",
+          "CAG-110 sp002437585",
+          "CAG-110 sp002437585 ",
+          "Methanobrevibacter_A smithii",
+          "Phil1 sp001940855",
+          "Prevotella copri",
+          "Prevotella sp000434515",
+          "Lactobacillus amylovorus",
+          "Corynebacterium xerosis",
+          "Blautia_A obeum",
+          "Blautia_A sp000285855",
+          "Clostridium sp000435835",
+          "Clostridium_P ventriculi",
+          "UBA7748 sp900314535",
+          "Clostridium sp000435835",
+          "Prevotella copri",
+          "Bifidobacterium boum",
+          "Clostridium sp000435835",
+          "Corynebacterium xerosis",
+          "Prevotella copri_A",
+          "Prevotella copri",
+          "Prevotella sp000434515")
+
+keep <- data.frame(keep)
+colnames(keep) <- "gOTU_1"
+
+df_CI <-inner_join(keep,df4)
+
+df_CI <- df_CI %>%
+  group_by(gOTU,date) %>%
+  summarise(lowCI = ci(norm_value)[2],
+            hiCI = ci(norm_value)[3])
+
+fwrite(x=df_CI, file=paste0(out_dir_git,"gt_siamcat_time_major_species_shifts.csv"), sep = ",")
+
 

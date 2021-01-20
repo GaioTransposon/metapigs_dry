@@ -703,6 +703,42 @@ tosave <- ggarrange(Chao1_plot,
 ggsave(filename = paste0(out_dir,"gt_phylo_diversity_boxplot.pdf"), plot = tosave)
 
 
+# get stats of diversity and save 
+
+div1 <- Chao1_data %>%
+  group_by(date) %>%
+  dplyr::summarise(mean=mean(value),
+                   sd=sd(value))
+div1$type <- "Chao1"
+
+div2 <- Shannon_data %>%
+  group_by(date) %>%
+  dplyr::summarise(mean=mean(value),
+                   sd=sd(value))
+div2$type <- "Shannon"
+
+div3 <- Simpson_data %>%
+  group_by(date) %>%
+  dplyr::summarise(mean=mean(value),
+                   sd=sd(value))
+div3$type <- "Simpson"
+
+diversity_means_by_date <- rbind(div1,div2,div3)
+
+# save 
+fwrite(x=diversity_means_by_date, file = paste0(out_dir_git,"gtdb_diversity_means_by_date.csv"), sep = ",")
+
+Shannon_data_test$type <- "Shannon"
+Simpson_data_test$type <- "Simpson"
+Chao1_data_test$type <- "Chao1"
+
+diversity_pval_by_date <- rbind(Shannon_data_test,
+                                Simpson_data_test,
+                                Chao1_data_test)
+
+# save 
+fwrite(x=diversity_pval_by_date, file = paste0(out_dir_git,"gtdb_diversity_pval_by_date.csv"), sep = ",")
+
 ######################################################################
 ######################################################################
 

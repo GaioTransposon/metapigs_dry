@@ -1,0 +1,16 @@
+.y.,group1,group2,p,p.adj,p.format,p.signif,method,my_comparisons,y.position,type
+value,t0,t2,8.67395059321786e-16,1.3e-14,8.7e-16,****,T-test,t0_t2,5.2,Shannon
+value,t2,t4,0.0128095028841524,0.19,0.0128,*,T-test,t2_t4,5.4,Shannon
+value,t4,t6,0.0153191361522875,0.23,0.0153,*,T-test,t4_t6,5.6,Shannon
+value,t6,t8,0.0513166046871119,0.77,0.0513,ns,T-test,t6_t8,5.8,Shannon
+value,t8,t10,0.0937617043725348,1,0.0938,ns,T-test,t8_t10,6,Shannon
+value,t0,t2,0.00796173312570624,0.12,0.00796,**,T-test,t0_t2,1.02,Simpson
+value,t2,t4,2.97049105720801e-05,0.00045,3e-05,****,T-test,t2_t4,1.04,Simpson
+value,t4,t6,0.0345520769106187,0.52,0.03455,*,T-test,t4_t6,1.06,Simpson
+value,t6,t8,0.17086736898396,1,0.17087,ns,T-test,t6_t8,1.08,Simpson
+value,t8,t10,0.91238599279133,1,0.91239,ns,T-test,t8_t10,1.1,Simpson
+value,t0,t2,2.26750948149634e-20,3.4e-19,< 2e-16,****,T-test,t0_t2,300,Chao1
+value,t2,t4,0.00657615033551533,0.099,0.0066,**,T-test,t2_t4,320,Chao1
+value,t4,t6,0.00208694425091318,0.031,0.0021,**,T-test,t4_t6,340,Chao1
+value,t6,t8,0.692839300439834,1,0.6928,ns,T-test,t6_t8,360,Chao1
+value,t8,t10,0.0918422869506811,1,0.0918,ns,T-test,t8_t10,380,Chao1
