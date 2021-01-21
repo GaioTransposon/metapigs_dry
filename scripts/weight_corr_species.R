@@ -371,7 +371,7 @@ ress <- res %>%
 # fish out from the ress output 
 # selecting species and date 
 # and plot 
-
+hist(sel$all_bins_value)
 
 pdf(paste0(out_dir,"gt_corr_weight_species.pdf"))
 for (row in 1:nrow(ress)) {
@@ -391,7 +391,7 @@ for (row in 1:nrow(ress)) {
   
 }
 dev.off()
-
+library(ggplot2)
 # Coprococcus_B comes
 # Bacteroides_B vulgatus
 # Eubacterium callanderi

@@ -12,7 +12,8 @@ library(dplyr)
 library(data.table)
 library(readxl)
 library(pheatmap)
-library(robCompositions)
+#library(robCompositions)
+library(compositions) # <- this is the good one for clr transform
 library(ggbiplot)
 library(EnvStats)
 library(treemapify)
@@ -173,12 +174,12 @@ final_pig <- left_join(az2,az3)
 
 # reorder cohorts 
 final_pig$cohort  = factor(final_pig$cohort, levels=c("Control", 
-                                          "D-Scour",
-                                          "ColiGuard", 
-                                          "Neomycin",
-                                          "NeoD",
-                                          "NeoC",
-                                          "Mothers"))
+                                                      "D-Scour",
+                                                      "ColiGuard", 
+                                                      "Neomycin",
+                                                      "NeoD",
+                                                      "NeoC",
+                                                      "Mothers"))
 
 
 # mean - Bins per cohort: 
@@ -213,7 +214,7 @@ bins_per_cohort_plot <- final_pig %>%
                        high = "green",
                        name = "sampling frequency")+
   guides(color=guide_colorbar(direction = "horizontal",
-                             title.position = "top"))+
+                              title.position = "top"))+
   annotate("text", label = labs[1], x = 1, y = 835, size = 3, colour = "black") +
   annotate("text", label = labs[2], x = 2, y = 835, size = 3, colour = "black") +
   annotate("text", label = labs[3], x = 3, y = 835, size = 3, colour = "black") +
@@ -284,8 +285,8 @@ az$date  = factor(az$date, levels=c("t0",
                                     "t10"))
 az <- az %>%
   dplyr::mutate(sampling = ifelse(date == "t0" | date == "t2" | 
-                             date == "t4" | date == "t6" | 
-                             date == "t8" | date == "t10" , "all subjects", "subset"))
+                                    date == "t4" | date == "t6" | 
+                                    date == "t8" | date == "t10" , "all subjects", "subset"))
 
 
 sample_per_timepoint_plot <- ggplot(data=az, mapping=aes(x=date, y=`number of samples`, fill=sampling)) + 
@@ -408,14 +409,14 @@ test <- no_reps_all %>%
 
 # reorder cohorts 
 test$cohort  = factor(test$cohort, levels=c("Control", 
-                                        "D-Scour",
-                                        "ColiGuard", 
-                                        "Neomycin",
-                                        "NeoD",
-                                        "NeoC"))
+                                            "D-Scour",
+                                            "ColiGuard", 
+                                            "Neomycin",
+                                            "NeoD",
+                                            "NeoC"))
 
 treemap_ggplot <- ggplot(test, aes(area = perc, fill = cohort, label = pig,
-                    subgroup = cohort, subgroup2=pig)) +
+                                   subgroup = cohort, subgroup2=pig)) +
   geom_treemap() +
   geom_treemap_subgroup_border() +
   geom_treemap_subgroup2_border(colour="black",size=1) +
@@ -443,11 +444,11 @@ dev.off()
 ######################################################################
 
 bins_to_sampling_3_figures <- ggarrange(sample_per_timepoint_plot,
-          bins_per_cohort_plot,
-          treemap_ggplot,
-          nrow=1,
-          ncol=3,
-          labels=c("A","B","C"))
+                                        bins_per_cohort_plot,
+                                        treemap_ggplot,
+                                        nrow=1,
+                                        ncol=3,
+                                        labels=c("A","B","C"))
 
 #pdf("sample_effort_to_MAGs_plots.pdf",width = 9,height = 5)
 #bins_to_sampling_3_figures
@@ -459,11 +460,11 @@ bins_to_sampling_3_figures <- ggarrange(sample_per_timepoint_plot,
 df_90100 <- subset(all_checkm_output, Completeness>= 90 & Completeness <= 100)
 df_90100_5 <- subset(df_90100, Contamination <=5)
 df_90100_5$type = paste0(paste0("Nearly complete: ",
-                                 round(NROW(df_90100_5)/NROW(all_checkm_output)*100,2),
-                                 "%",
-                                 " (n=",
-                                 NROW(df_90100_5),
-                                 ")"))
+                                round(NROW(df_90100_5)/NROW(all_checkm_output)*100,2),
+                                "%",
+                                " (n=",
+                                NROW(df_90100_5),
+                                ")"))
 
 # Medium quality
 df_8090 <- subset(all_checkm_output, Completeness>= 80 & Completeness < 90)
@@ -474,11 +475,11 @@ df_90100_510 <- subset(df_90100, Contamination >5 & Contamination <= 10)
 medium_quality <- rbind(df_8090_10, df_90100_510)
 
 medium_quality$type = paste0(paste0("Medium quality: ",
-                                 round(NROW(medium_quality)/NROW(all_checkm_output)*100,2),
-                                 "%",
-                                 " (n=",
-                                 NROW(medium_quality),
-                                 ")"))
+                                    round(NROW(medium_quality)/NROW(all_checkm_output)*100,2),
+                                    "%",
+                                    " (n=",
+                                    NROW(medium_quality),
+                                    ")"))
 
 
 best <- rbind(df_90100_5,medium_quality)
@@ -567,11 +568,11 @@ dev.off()
 df_6080 <- subset(all_checkm_output, Completeness>= 60 & Completeness < 80)
 df_6080_10 <- subset(df_6080, Contamination <=10)
 df_6080_10$type <- paste0("Partial quality: ",
-                    round(NROW(df_6080_10)/NROW(all_checkm_output)*100,2),
-                    "%",
-                    " (n=",
-                    NROW(df_6080_10),
-                    ")")
+                          round(NROW(df_6080_10)/NROW(all_checkm_output)*100,2),
+                          "%",
+                          " (n=",
+                          NROW(df_6080_10),
+                          ")")
 
 toplot <- rbind(df_90100_5,medium_quality,df_6080_10)
 
@@ -609,7 +610,7 @@ plot_pred_genes <- ggplot(data= toplot, aes(x=`# predicted genes`, fill=type)) +
   scale_fill_manual(values=c("#6C6C6C", #grey
                              "#F8766D", #red
                              "#45B4B8" #blue
-                             )) + 
+  )) + 
   scale_x_continuous(breaks=seq(1e3,6e3, by = 2e3), label=scientific) +
   xlab("predicted genes") +
   ylab("Frequency")+
@@ -797,25 +798,25 @@ df <- cSplit(df, "taxa", sep=";")
 
 # reorder dates 
 df$date  = factor(df$date, levels=c("tM", 
-                                        "t0",
-                                        "t1", 
-                                        "t2",
-                                        "t3",
-                                        "t4",
-                                        "t5",
-                                        "t6",
-                                        "t7",
-                                        "t8",
-                                        "t9",
-                                        "t10"))
+                                    "t0",
+                                    "t1", 
+                                    "t2",
+                                    "t3",
+                                    "t4",
+                                    "t5",
+                                    "t6",
+                                    "t7",
+                                    "t8",
+                                    "t9",
+                                    "t10"))
 
 # reorder cohorts 
 df$cohort  = factor(df$cohort, levels=c("Control", 
-                                    "D-Scour",
-                                    "ColiGuard", 
-                                    "Neomycin",
-                                    "NeoD",
-                                    "NeoC"))
+                                        "D-Scour",
+                                        "ColiGuard", 
+                                        "Neomycin",
+                                        "NeoD",
+                                        "NeoC"))
 
 
 ######################################################################
@@ -954,9 +955,9 @@ ggplot(summs_for_parallel_coo, aes(fill=taxa_2, y=mean, x=date)) +
   geom_bar(position="fill", stat="identity") +
   theme(axis.title.y = element_text(),
         legend.title = element_text()) +
-    labs(x = "collection date",
-         y = "relative abundance (ratio)",
-         fill = "Phylum")  
+  labs(x = "collection date",
+       y = "relative abundance (ratio)",
+       fill = "Phylum")  
 dev.off()
 
 
@@ -1075,8 +1076,8 @@ dev.off()
 # PHYLA composition change through time: HEATMAP - all
 
 phyla_pheatmap <- pheatmap(t(m), display_numbers = T,
-                        cluster_rows = F, cluster_cols = F, fontsize_number = 8,
-                        fontsize_row = 8,show_rownames = TRUE)
+                           cluster_rows = F, cluster_cols = F, fontsize_number = 8,
+                           fontsize_row = 8,show_rownames = TRUE)
 
 pdf(paste0(out_dir,"cm_heatmap_phyla.pdf"))
 phyla_pheatmap
@@ -1229,6 +1230,7 @@ dev.off()
 
 df1 <- df 
 NROW(df1)
+head(df1)
 
 # define full_taxa 
 df1$full_taxa <- paste0(df1$taxa_1,"..",
@@ -1252,6 +1254,149 @@ unique(df1$full_taxa)
 
 #################################
 # STEP 1.
+
+
+# for each sample (pig,date), sum up the counts that fall within one species (same species assigned to distinct bins)
+df2 <- df1 %>%
+  group_by(pig,full_taxa,date) %>%
+  dplyr::summarize(sum_value = sum(value)) 
+head(df2)
+sum(df2$sum_value)
+
+# normalize by library size 
+df3 <- df2 %>% 
+  group_by(pig,date) %>% 
+  dplyr::mutate(norm_value = sum_value/sum(sum_value)) %>% 
+  dplyr::select(-sum_value)
+head(df3)
+
+# if your total sum is equal to the total number of samples, 
+# it means that the sum within each sample (pig,date) is 1, and that's correct  
+NROW(unique(paste0(df3$pig,df3$date)))==sum(df3$norm_value)
+
+
+df3 <- as.data.frame(df3)
+df3$sample = paste0(df3$date,"_",df3$pig)
+head(df3)
+
+##############################################################################################
+# CLR TRANSFORM AND pivot wider 
+
+# pivot wider
+df3 <- df3 %>%
+  dplyr::select(sample,full_taxa,norm_value) %>%
+  dplyr::mutate(norm_value=as.numeric(clr(norm_value))) %>%
+  pivot_wider(names_from = full_taxa, values_from = norm_value, values_fill = list(norm_value = 0))
+##############################################################################################
+
+feat <- as.data.frame(df3)
+which(is.na(feat[,1]))
+
+# rownames(feat) <- feat[,1]
+# feat[,1] <- NULL
+# 
+# head(feat)
+# dim(feat)
+# 
+# # is the sum of each columns 1? 
+# colSums(feat)
+# # yes 
+
+# ready! 
+
+
+# get a quick cohorts to pig table
+cohorts <- df %>% dplyr::select(cohort,pig,date) %>% distinct()
+cohorts$sample <- paste0(cohorts$date,"_",cohorts$pig)
+cohorts <- as.data.frame(cohorts)
+
+
+
+df5 <- inner_join(cohorts,feat) 
+df5$sample <- paste0(df5$date,"_",df5$cohort)
+
+df5$pig <- NULL
+df5$date <- NULL
+df5$cohort <- NULL
+
+
+
+df6 <- df5 %>%
+  group_by(sample) %>%
+  dplyr::summarise_if(is.numeric, mean, na.rm = TRUE)
+
+
+df6 <- as.data.frame(df6)
+rowSums(df6[,-1])
+
+
+
+rownames(df6) <- df6$sample
+df6$sample <- NULL
+m <- as.matrix(df6)
+
+df6.pca <- prcomp(m, center = FALSE,scale. = FALSE)
+summary(df6.pca)
+
+# to get samples info showing on PCA plot
+this_mat_samples <- data.frame(sample=rownames(m)) 
+this_mat_samples <- cSplit(indt = this_mat_samples, "sample", sep = "_", drop = NA)
+
+# reorder dates 
+this_mat_samples$sample_1  = factor(this_mat_samples$sample_1, levels=c("t0",
+                                                                        "t1", 
+                                                                        "t2",
+                                                                        "t3",
+                                                                        "t4",
+                                                                        "t5",
+                                                                        "t6",
+                                                                        "t7",
+                                                                        "t8",
+                                                                        "t9",
+                                                                        "t10"))
+
+cm_PC12 <- ggbiplot(df6.pca,
+                    labels=this_mat_samples$sample_2,
+                    groups=this_mat_samples$sample_1,
+                    ellipse=TRUE,
+                    var.axes = FALSE,
+                    labels.size = 2,
+                    choices = (1:2)) +
+  theme_bw() +
+  #xlim(c(-2,1)) +
+  scale_colour_discrete(name="timepoint")+
+  guides(color = guide_legend(ncol = 1))
+
+cm_PC34 <- ggbiplot(df6.pca,
+                    labels=this_mat_samples$sample_2,
+                    groups=this_mat_samples$sample_1,
+                    ellipse=TRUE,
+                    var.axes = FALSE,
+                    labels.size = 2,
+                    choices = (3:4)) +
+  theme_bw() +
+  scale_colour_discrete(name="timepoint")+
+  guides(color = guide_legend(ncol = 1))
+
+
+cm_PCA <- ggarrange(cm_PC12,cm_PC34,
+                    ncol=2,legend = "right",
+                    common.legend=TRUE)
+
+pdf(paste0(out_dir,"cm_PCA.pdf"), width=7,height=4)
+cm_PCA
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
 
 # normalization for library size 
 df2 <- df1 %>%
@@ -1286,6 +1431,19 @@ head(df3)
 
 #################################
 # STEP 3.
+
+
+
+##############################################################################################
+# CLR TRANSFORM AND pivot wider 
+
+# pivot wider
+# df4 <- df3 %>%
+#   dplyr::select(pig,date,full_taxa,indiv_sum) %>%
+#   dplyr::mutate(indiv_sum=as.numeric(clr(indiv_sum))) %>%
+#   pivot_wider(names_from = full_taxa, values_from = indiv_sum, values_fill = list(indiv_sum = 0))
+##############################################################################################
+
 
 # long to wide format
 df4 <- df3 %>%
@@ -1341,43 +1499,43 @@ this_mat_samples <- cSplit(indt = this_mat_samples, "sample", sep = "_", drop = 
 
 # reorder dates 
 this_mat_samples$sample_1  = factor(this_mat_samples$sample_1, levels=c("t0",
-                                    "t1", 
-                                    "t2",
-                                    "t3",
-                                    "t4",
-                                    "t5",
-                                    "t6",
-                                    "t7",
-                                    "t8",
-                                    "t9",
-                                    "t10"))
+                                                                        "t1", 
+                                                                        "t2",
+                                                                        "t3",
+                                                                        "t4",
+                                                                        "t5",
+                                                                        "t6",
+                                                                        "t7",
+                                                                        "t8",
+                                                                        "t9",
+                                                                        "t10"))
 
 cm_PC12 <- ggbiplot(df6.pca,
-                      labels=this_mat_samples$sample_2,
-                      groups=this_mat_samples$sample_1,
-                      ellipse=TRUE,
-                      var.axes = FALSE,
-                      labels.size = 2,
-                      choices = (1:2)) +
+                    labels=this_mat_samples$sample_2,
+                    groups=this_mat_samples$sample_1,
+                    ellipse=TRUE,
+                    var.axes = FALSE,
+                    labels.size = 2,
+                    choices = (1:2)) +
   theme_bw() +
   xlim(c(-2,1)) +
   scale_colour_discrete(name="timepoint")+
   guides(color = guide_legend(ncol = 1))
 cm_PC34 <- ggbiplot(df6.pca,
-                      labels=this_mat_samples$sample_2,
-                      groups=this_mat_samples$sample_1,
-                      ellipse=TRUE,
-                      var.axes = FALSE,
-                      labels.size = 2,
-                      choices = (3:4)) +
+                    labels=this_mat_samples$sample_2,
+                    groups=this_mat_samples$sample_1,
+                    ellipse=TRUE,
+                    var.axes = FALSE,
+                    labels.size = 2,
+                    choices = (3:4)) +
   theme_bw() +
   scale_colour_discrete(name="timepoint")+
   guides(color = guide_legend(ncol = 1))
 
 
 cm_PCA <- ggarrange(cm_PC12,cm_PC34,
-                      ncol=2,legend = "right",
-                      common.legend=TRUE)
+                    ncol=2,legend = "right",
+                    common.legend=TRUE)
 
 pdf(paste0(out_dir,"cm_PCA.pdf"), width=7,height=4)
 cm_PCA

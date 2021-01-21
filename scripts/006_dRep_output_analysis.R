@@ -11,7 +11,8 @@ library(ggplot2)
 library(splitstackshape)
 library(pheatmap)
 library(ggpubr)
-library(robCompositions)
+library(compositions) # this is the good one for clr transform
+#library(robCompositions)
 library(ggbiplot)
 
 source_dir = "/Users/12705859/metapigs_dry/source_data/" # git 
@@ -525,10 +526,15 @@ df3 <- as.data.frame(df3)
 df3$sample = paste0(df3$date,"_",df3$pig)
 head(df3)
 
+##############################################################################################
+# CLR TRANSFORM AND pivot wider 
+
 # pivot wider
 df3 <- df3 %>%
   dplyr::select(sample,secondary_cluster,norm_value) %>%
+  dplyr::mutate(norm_value=as.numeric(clr(norm_value))) %>%
   pivot_wider(names_from = secondary_cluster, values_from = norm_value, values_fill = list(norm_value = 0))
+##############################################################################################
 
 feat <- as.data.frame(df3)
 which(is.na(feat[,1]))
@@ -602,7 +608,7 @@ dRep_PC12 <- ggbiplot(df6.pca,
                       labels.size = 2,
                       choices = (1:2)) +
   theme_bw() +
-  xlim(c(-2,1)) +
+  #xlim(c(-2,1)) +
   scale_colour_discrete(name="timepoint")+
   guides(color = guide_legend(ncol = 1))
 dRep_PC34 <- ggbiplot(df6.pca,
