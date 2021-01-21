@@ -25,6 +25,7 @@ library(broom)
 library(cowplot)
 library(ggsci)
 
+library(compositions) # for clr transform 
 
 source_dir = "/Users/12705859/metapigs_dry/source_data/" # git 
 middle_dir = "/Users/12705859/metapigs_dry/middle_dir/" # git 
@@ -336,17 +337,10 @@ sel <- sel %>%
   dplyr::filter(date=="t0"|date=="t2"|date=="t4"|date=="t6"|
                   date=="t8"|date=="t10") 
 
+# reorder dates 
+sel$date  = factor(sel$date, levels=c("t0","t2","t4","t6","t8","t10"))
+
 ######################################################################
-
-# select those with weight data 
-sel %>% 
-  dplyr::filter(species=="Bacillus_A thuringiensis_J") %>% 
-  ggplot(., aes(x=weight,y=log(all_bins_value)))+
-  geom_point(size=0.5) +
-  facet_wrap(~date, scale="free", shrink = TRUE)+
-  stat_smooth(method="lm", se=TRUE) +
-  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
-
 
 sel_frequent <- sel %>% 
   group_by(species,date) %>% 
@@ -371,7 +365,7 @@ ress <- res %>%
 # fish out from the ress output 
 # selecting species and date 
 # and plot 
-hist(sel$all_bins_value)
+
 
 pdf(paste0(out_dir,"gt_corr_weight_species.pdf"))
 for (row in 1:nrow(ress)) {
@@ -401,18 +395,18 @@ library(ggplot2)
 
 sell <- sel
 
-end_abund <- sel %>%
+end_weight <- sel %>%
   dplyr::filter(date=="t10") %>%
    dplyr::filter(species=="Eubacterium callanderi") %>%
-  dplyr::select(pig,all_bins_value)
-
-start_weight <- sel %>%
-  dplyr::filter(date=="t0") %>%
-  dplyr::filter(species=="Eubacterium callanderi") %>%
   dplyr::select(pig,weight)
 
+start_abund <- sel %>%
+  dplyr::filter(date=="t0") %>%
+  dplyr::filter(species=="Eubacterium callanderi") %>%
+  dplyr::select(pig,all_bins_value)
+
 inner_join(start_abund,end_weight) %>%
-  ggplot(., aes(x=weight,y=log(all_bins_value)))+
+  ggplot(., aes(x=weight,y=as.numeric(clr((all_bins_value)))))+
   geom_point(size=0.5) +
   stat_smooth(method="lm", se=TRUE) +
   stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
@@ -447,6 +441,15 @@ inner_join(start_abund,end_weight) %>%
   dplyr::filter(species==res[1,1]) %>%
   ggplot(., aes(x=weight,y=log(all_bins_value)))+
   geom_point(size=0.5) +
+  stat_smooth(method="lm", se=TRUE) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+
+sel %>% 
+  dplyr::filter(species=="Eubacterium callanderi") %>% 
+  ggplot(., aes(x=weight,y=all_bins_value))+
+  geom_point(size=0.5) +
+  facet_wrap(~date, scale="free", shrink = TRUE)+
   stat_smooth(method="lm", se=TRUE) +
   stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
 
