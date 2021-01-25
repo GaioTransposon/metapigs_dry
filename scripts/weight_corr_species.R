@@ -217,18 +217,30 @@ NROW(df0)
 df0 <- left_join(df0,weights)
 NROW(df0)
 
-###########################################################################################
 
 
-# TAXA
 
 
-taxa_mat <- df0 %>%
-  dplyr::select(gOTU,species,genus,family,order,class,phylum,domain) %>%
-  group_by(gOTU) %>%
-  dplyr::slice(1)
 
-NROW(taxa_mat)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -237,7 +249,7 @@ NROW(taxa_mat)
 # gOTU_mat
 
 # columns to be kept 
-keep <- c("cohort","pig","bin","date","value","gOTU")
+keep <- c("cohort","pig","bin","date","value","species","genus","family","class")
 df1 <- df0[ , (names(df0) %in% keep)]
 
 # NA to zeros 
@@ -251,8 +263,13 @@ NROW(df1)
 
 # sum up all the counts from the same sample (pig and date) that belong to the same OTU
 df2 <- df1 %>%
-  group_by(pig,date,gOTU) %>%
-  dplyr::summarise(all_bins_value = sum(value))
+  group_by(pig,date,species,genus,family,class) %>%
+  dplyr::summarise(all_bins_value = sum(value)) 
+
+# clr transform per sample
+df2 <- df2 %>%
+  group_by(pig,date) %>%
+  dplyr::mutate(all_bins_value = as.numeric(clr(all_bins_value)))
 
 
 ######################################################################
@@ -310,146 +327,122 @@ sample_df$cohort  = factor(sample_df$cohort, levels=c("Control",
 
 # ready
 
+df2
+sample_df
 
-######################################################################
 
-
-# objects: 
-
-NROW(df2)
-NROW(taxa_mat)
-NROW(sample_df)
-
-head(df2)
-head(taxa_mat)
-head(sample_df)
-
-df2_taxamat <- inner_join(df2,taxa_mat)
-head(df2_taxamat)
-
-all <- inner_join(df2_taxamat,sample_df)
-sel <- all 
-sel <- cSplit(indt = sel, "sample", sep = "_", drop = NA)
-sel$date = sel$sample_1
-sel$n=1
-# select those with weight data 
-sel <- sel %>% 
-  dplyr::filter(date=="t0"|date=="t2"|date=="t4"|date=="t6"|
-                  date=="t8"|date=="t10") 
+all <- inner_join(sample_df,df2) %>% 
+  dplyr::filter(date=="t0"|date=="t2"|date=="t4"|date=="t6"| # select those with weight data 
+                  date=="t8"|date=="t10") %>%
+  dplyr::select(weight,pig,date,all_bins_value,species,genus,family,class) %>% drop_na()
 
 # reorder dates 
-sel$date  = factor(sel$date, levels=c("t0","t2","t4","t6","t8","t10"))
+all$date  = factor(all$date, levels=c("t0","t2","t4","t6","t8","t10"))
 
 ######################################################################
 
-sel_frequent <- sel %>% 
-  group_by(species,date) %>% 
-  dplyr::mutate(num=sum(n)) %>% 
-  dplyr::filter(num>20) 
+# # subset to frequent species
+# all$n=1
+# all_frequent <- all %>% 
+#   group_by(species,date) %>% 
+#   dplyr::mutate(num=sum(n)) %>% 
+#   dplyr::filter(num>20) 
 
+
+last <- data.frame() # empty dataframe
 require(plyr)
 func <- function(xx)
 {
-  return(data.frame(COR = cor(xx$weight, xx$all_bins_value, method = "pearson")))
+  if (NROW(xx) > 10) {
+    f <- cor.test(xx$weight, xx$all_bins_value, method = "pearson")
+    pval <- f$p.value
+    cor <- f$estimate
+    species <- unique(xx$species)
+    out <- data.frame(species,cor,pval)
+    last <- rbind(last,out)
+    return(out)
+  }
 }
 
-
-res <- ddply(sel_frequent, .(date,species), func)
+res <- ddply(all, .(date,species), func)
 head(res)
+NROW(res)
 
 # filter out weak correlations 
 ress <- res %>% 
-  dplyr::filter(!between(COR, -0.3, 0.3))
+  dplyr::filter(pval<0.01) %>%
+  dplyr::filter(!between(cor, -0.3, 0.3)) %>%
+  dplyr::arrange(pval)
 
+NROW(ress)
+View(ress)
 
 # fish out from the ress output 
-# selecting species and date 
-# and plot 
-
-
+# selecting species and plot 
 pdf(paste0(out_dir,"gt_corr_weight_species.pdf"))
 for (row in 1:nrow(ress)) {
   
   speciess <- ress[row,2]
-  sel0 <- subset(sel, species %in% speciess) %>%
-    dplyr::filter(date=="t0"|date=="t2"|date=="t4"|date=="t6"|
-                    date=="t8"|date=="t10")
+  all0 <- subset(all, species %in% speciess) 
   
-  print(sel0 %>%
-    ggplot(., aes(x=weight,y=log(all_bins_value)))+
-    geom_point(size=0.5) +
-    facet_wrap(~date, scale="free", shrink = TRUE)+
-    stat_smooth(method="lm", se=TRUE) +
-    stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)+
-    ggtitle(speciess))
+  print(all0 %>%
+          ggplot(., aes(x=weight,y=all_bins_value))+
+          geom_point(size=0.5) +
+          facet_wrap(~date, scale="free", shrink = TRUE)+
+          stat_smooth(method="lm", se=TRUE) +
+          stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)+
+          ggtitle(paste0(unique(all0$species),"__",
+                         unique(all0$family),"__",
+                         unique(all0$class))))
   
 }
 dev.off()
-library(ggplot2)
-# Coprococcus_B comes
-# Bacteroides_B vulgatus
-# Eubacterium callanderi
-# Methanobrevibacter_A gottschalkii
-# RUG369 sp900317365
-# RUG369 sp900318195
 
-sell <- sel
+############################################################
 
-end_weight <- sel %>%
+# abundance of which taxa correlate with final weight? 
+
+
+end_weight <- all %>%
   dplyr::filter(date=="t10") %>%
-   dplyr::filter(species=="Eubacterium callanderi") %>%
-  dplyr::select(pig,weight)
+  dplyr::select(pig,weight,species,genus,family,class)
 
-start_abund <- sel %>%
+start_abund <- all %>%
   dplyr::filter(date=="t0") %>%
-  dplyr::filter(species=="Eubacterium callanderi") %>%
-  dplyr::select(pig,all_bins_value)
+  dplyr::select(pig,all_bins_value,species,genus,family,class)
 
-inner_join(start_abund,end_weight) %>%
-  ggplot(., aes(x=weight,y=as.numeric(clr((all_bins_value)))))+
-  geom_point(size=0.5) +
-  stat_smooth(method="lm", se=TRUE) +
-  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+start_end <- inner_join(start_abund,end_weight) 
 
 
-require(plyr)
-func <- function(xx)
-{
-  return(data.frame(COR = cor(xx$weight, xx$all_bins_value, method = "pearson")))
+start_end_res <- ddply(start_end, .(species), func)
+head(start_end_res)
+NROW(start_end_res)
+
+# filter out weak correlations 
+start_end_ress <- start_end_res %>% 
+  dplyr::filter(pval<0.05) %>%
+  dplyr::filter(!between(cor, -0.3, 0.3)) %>%
+  dplyr::arrange(pval)
+
+NROW(start_end_ress)
+head(start_end_ress)
+
+# fish out from the ress output 
+# selecting species and plot 
+pdf(paste0(out_dir,"gt_STARTcorr_ENDweight_species.pdf"))
+for (row in 1:nrow(start_end_ress)) {
+  
+  speciess <- start_end_ress[row,1]
+  all0 <- subset(start_end, species %in% speciess) 
+  
+  print(all0 %>%
+          ggplot(., aes(x=weight,y=all_bins_value))+
+          geom_point(size=0.5) +
+          stat_smooth(method="lm", se=TRUE) +
+          stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)+
+          ggtitle(paste0(unique(all0$species),"__",
+                         unique(all0$family),"__",
+                         unique(all0$class))))
+  
 }
-
-start_abund <- sel %>%
-  dplyr::filter(date=="t0") %>%
-  dplyr::select(pig,all_bins_value,species)
-
-end_weight <- sel %>%
-  dplyr::filter(date=="t10") %>%
-  dplyr::select(pig,weight,species)
-
-merged <- inner_join(start_abund,end_weight) %>%
-  dplyr::mutate(n=1) %>% 
-  group_by(species) %>% 
-  dplyr::mutate(num=sum(n)) %>% 
-  dplyr::filter(num>10) 
-
-res <- ddply(merged, .(species), func)
-res <- res %>%
-  arrange(COR)
-head(res)
-
-inner_join(start_abund,end_weight) %>%
-  dplyr::filter(species==res[1,1]) %>%
-  ggplot(., aes(x=weight,y=log(all_bins_value)))+
-  geom_point(size=0.5) +
-  stat_smooth(method="lm", se=TRUE) +
-  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
-
-
-sel %>% 
-  dplyr::filter(species=="Eubacterium callanderi") %>% 
-  ggplot(., aes(x=weight,y=all_bins_value))+
-  geom_point(size=0.5) +
-  facet_wrap(~date, scale="free", shrink = TRUE)+
-  stat_smooth(method="lm", se=TRUE) +
-  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
-
+dev.off()

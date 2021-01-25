@@ -17,6 +17,7 @@ library(gmodels)
 
 
 
+
 source_dir = "/Users/12705859/metapigs_dry/source_data/" # git 
 middle_dir = "/Users/12705859/metapigs_dry/middle_dir/" # git 
 out_dir_git = "/Users/12705859/metapigs_dry/out/" # git 
@@ -417,7 +418,7 @@ comparetimepoints_full <- function(t1,t2) { # where c is the cohort of interest,
     mult.corr = "fdr",
     detect.lim = 10 ^-6,
     plot.type = "quantile.box",
-    panels = c("fc", "prevalence", "auroc"))
+    panels = c("fc", "auroc"))
   
   
   # save the data (significantly associated hits)
@@ -428,6 +429,15 @@ comparetimepoints_full <- function(t1,t2) { # where c is the cohort of interest,
   rownames(mydata) <- NULL
   
   fwrite(x=mydata, file=paste0(out_dir_git,"gt_siamcat_time.csv"), sep = ",",
+         append = TRUE)
+  
+  mydata_sub50 <- mydata %>%
+    dplyr::arrange(p.adj) %>%
+    slice(1:50) %>%
+    arrange(desc(fc)) %>%
+    dplyr::select(fc,p.adj)
+  
+  fwrite(x=mydata_sub50, file=paste0(out_dir_git,"gt_siamcat_time_sub50.csv"), sep = ",",
          append = TRUE)
   
   # Model building
@@ -636,7 +646,7 @@ comparetimepoints_mini <- function(t1,t2) {
     mult.corr = "fdr",
     detect.lim = 10 ^-6,
     plot.type = "quantile.box",
-    panels = c("fc", "prevalence", "auroc"))
+    panels = c("fc", "auroc"))
   
   
 }
@@ -675,11 +685,11 @@ siamcat <- check.associations(
   siamcat,
   sort.by = 'fc',
   fn.plot = paste0(out_dir,"gt_siamcatA_age_","t0_Duroc x Landrace.pdf"),
-  alpha = 0.06,
+  alpha = 0.07, #0.6
   mult.corr = "fdr",
   detect.lim = 10 ^-30,
   prompt = FALSE,
-  panels = c("fc", "prevalence", "auroc"))
+  panels = c("fc", "auroc"))
 
 # save the data (significantly associated hits with bday - t0)
 mydata <- associations(siamcat,verbose=1)
@@ -702,11 +712,11 @@ siamcat <- check.associations(
   siamcat,
   sort.by = 'fc',
   fn.plot = paste0(out_dir,"gt_siamcatA_age_","t2_Duroc x Landrace.pdf"),
-  alpha = 0.13,
+  alpha = 0.16, #0.13
   mult.corr = "fdr",
   detect.lim = 10 ^-30,
   prompt = FALSE,
-  panels = c("fc", "prevalence", "auroc"))
+  panels = c("fc", "auroc"))
 
 # save the data (significantly associated hits with bday - t2)
 mydata2 <- associations(siamcat,verbose=1)
@@ -743,7 +753,7 @@ siamcat <- check.associations(
   mult.corr = "fdr",
   detect.lim = 10 ^-30,
   prompt = FALSE,
-  panels = c("fc", "prevalence", "auroc"))
+  panels = c("fc", "auroc"))
 
 # save the data (significantly associated hits with bday - t0)
 mydata <- associations(siamcat,verbose=1)
@@ -770,7 +780,7 @@ siamcat <- check.associations(
   mult.corr = "fdr",
   detect.lim = 10 ^-30,
   prompt = FALSE,
-  panels = c("fc", "prevalence", "auroc"))
+  panels = c("fc", "auroc"))
 
 # save the data (significantly associated hits with bday - t0)
 mydata2 <- associations(siamcat,verbose=1)
