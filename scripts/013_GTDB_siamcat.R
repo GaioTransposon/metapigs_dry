@@ -836,6 +836,6 @@ df_CI <- df_CI %>%
   summarise(lowCI = ci(norm_value)[2],
             hiCI = ci(norm_value)[3])
 
-fwrite(x=df_CI, file=paste0(out_dir_git,"gt_siamcat_time_major_species_shifts.csv"), sep = ",")
+fwrite(x=df_CI, file=paste0(out_dir_git,"gt_siamcat_time_major_shifts.csv"), sep = ",")
 
 

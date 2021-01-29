@@ -23,6 +23,7 @@ library(broom)
 
 library(cowplot)
 library(ggsci)
+library(pairwiseCI)
 
 
 source_dir = "/Users/12705859/metapigs_dry/source_data/" # git 
@@ -627,18 +628,55 @@ gt_diversity_samples <- plot_richness(carbom, measures=c("Chao1","Shannon", "ACE
 # focus on three measures;
 # whisker plots instead 
 
-my_comparisons <- data.frame(my_comparisons=c("t0_t2", "t2_t4", "t4_t6", "t6_t8", "t8_t10"))
-
+comparison <- data.frame(comparison=c("t2-t0", "t4-t2", "t6-t4", "t8-t6", "t10-t8"))
 
 Chao1_data <- gt_diversity_samples$data %>%
   filter(date=="t0"|date=="t2"|date=="t4"|date=="t6"|date=="t8"|date=="t10") %>%
   filter(variable=="Chao1")
-Chao1_data_test <- as.data.frame(compare_means(value ~ date,
-                                               p.adjust.method = "bonferroni", 
-                                               method='t.test', data = Chao1_data) %>%
-                                   dplyr::mutate(my_comparisons=paste0(group1,"_",group2))) %>%
-  inner_join(., my_comparisons) %>%
+Shannon_data <- gt_diversity_samples$data %>%
+  dplyr::filter(date=="t0"|date=="t2"|date=="t4"|date=="t6"|date=="t8"|date=="t10") %>%
+  dplyr::filter(variable=="Shannon")
+Simpson_data <- gt_diversity_samples$data %>%
+  dplyr::filter(date=="t0"|date=="t2"|date=="t4"|date=="t6"|date=="t8"|date=="t10") %>%
+  dplyr::filter(variable=="Simpson")
+
+
+
+estimates_CI_ttest_fun <- function(xxx) {
+  
+  # estimates and CIs: 
+  apc <- pairwiseCI(value ~ date, data=xxx,
+                    method="Param.diff")
+  s <- summary(apc)
+  s_estimate <- round(s$estimate,2)
+  s_CI <- as.data.frame(s$conf.int)
+  s_CI$comparison <- rownames(s_CI)
+  s <- cbind(s_CI,s_estimate)
+  s$se <- round(s$estimate-s$lower,2)
+  
+  # t-test with Bonferroni adjust: 
+  apcTest <- pairwiseTest(value ~ date, data=xxx,
+                          method="t.test")
+  t <- summary(apcTest, p.adjust.method = "bonferroni")
+  
+  st <- inner_join(s,t)
+  st$variable <- unique(xxx$variable)
+  colnames(st) <- c("lower","upper","comparison","estimate","se","p.val.adj","p.val.raw",
+                    "group1","group2","variable")
+  return(st)
+}
+
+Chao1_data_stats <- estimates_CI_ttest_fun(Chao1_data)
+Shannon_data_stats <- estimates_CI_ttest_fun(Shannon_data)
+Simpson_data_stats <- estimates_CI_ttest_fun(Simpson_data)
+
+
+# plotting: 
+
+Chao1_data_stats <- Chao1_data_stats %>%
+  inner_join(., comparison, by="comparison") %>%
   dplyr::mutate(y.position=c(300,320,340,360,380))
+
 Chao1_plot <- Chao1_data %>%
   ggplot(., aes(x=date, y=value, color=date)) + 
   geom_boxplot(outlier.shape = NA)+
@@ -648,18 +686,13 @@ Chao1_plot <- Chao1_data %>%
   labs(x = "time point",
        y = "Chao1") +
   theme_minimal() +
-  stat_pvalue_manual(Chao1_data_test, label = "p.adj")
+  stat_pvalue_manual(Chao1_data_stats, label = "p.val.adj")
 
 
-Shannon_data <- gt_diversity_samples$data %>%
-  dplyr::filter(date=="t0"|date=="t2"|date=="t4"|date=="t6"|date=="t8"|date=="t10") %>%
-  dplyr::filter(variable=="Shannon")
-Shannon_data_test <- as.data.frame(compare_means(value ~ date, 
-                                                 p.adjust.method = "bonferroni", 
-                                                 method='t.test', data = Shannon_data) %>%
-                                     dplyr::mutate(my_comparisons=paste0(group1,"_",group2))) %>%
-  inner_join(., my_comparisons) %>%
+Shannon_data_stats <- Shannon_data_stats %>%
+  inner_join(., comparison, by="comparison") %>%
   dplyr::mutate(y.position=c(5.2,5.4,5.6,5.8,6.0))
+
 Shannon_plot <- Shannon_data %>%
   ggplot(., aes(x=date, y=value, color=date)) + 
   geom_boxplot(outlier.shape = NA)+
@@ -669,18 +702,13 @@ Shannon_plot <- Shannon_data %>%
   labs(x = "time point",
        y = "Shannon") +
   theme_minimal() +
-  stat_pvalue_manual(Shannon_data_test, label = "p.adj")
+  stat_pvalue_manual(Shannon_data_stats, label = "p.val.adj")
 
 
-Simpson_data <- gt_diversity_samples$data %>%
-  dplyr::filter(date=="t0"|date=="t2"|date=="t4"|date=="t6"|date=="t8"|date=="t10") %>%
-  dplyr::filter(variable=="Simpson")
-Simpson_data_test <- as.data.frame(compare_means(value ~ date, 
-                                                 p.adjust.method = "bonferroni", 
-                                                 method='t.test', data = Simpson_data) %>%
-                                     mutate(my_comparisons=paste0(group1,"_",group2))) %>%
-  inner_join(., my_comparisons) %>%
+Simpson_data_stats <- Simpson_data_stats %>%
+  inner_join(., comparison, by="comparison") %>%
   dplyr::mutate(y.position=c(1.02,1.04,1.06,1.08,1.1))
+
 Simpson_plot <- Simpson_data %>%
   ggplot(., aes(x=date, y=value, color=date)) + 
   geom_boxplot(outlier.shape = NA)+
@@ -690,7 +718,8 @@ Simpson_plot <- Simpson_data %>%
   labs(x = "time point",
        y = "Simpson") +
   theme_minimal() +
-  stat_pvalue_manual(Simpson_data_test, label = "p.adj")
+  stat_pvalue_manual(Simpson_data_stats, label = "p.val.adj")
+
 
 tosave <- ggarrange(Chao1_plot, 
                     Shannon_plot,
@@ -703,41 +732,15 @@ tosave <- ggarrange(Chao1_plot,
 ggsave(filename = paste0(out_dir,"gt_phylo_diversity_boxplot.pdf"), plot = tosave)
 
 
-# get stats of diversity and save 
+# save stats : 
 
-div1 <- Chao1_data %>%
-  group_by(date) %>%
-  dplyr::summarise(mean=mean(value),
-                   sd=sd(value))
-div1$type <- "Chao1"
-
-div2 <- Shannon_data %>%
-  group_by(date) %>%
-  dplyr::summarise(mean=mean(value),
-                   sd=sd(value))
-div2$type <- "Shannon"
-
-div3 <- Simpson_data %>%
-  group_by(date) %>%
-  dplyr::summarise(mean=mean(value),
-                   sd=sd(value))
-div3$type <- "Simpson"
-
-diversity_means_by_date <- rbind(div1,div2,div3)
+gtdb_diversity <- rbind(Shannon_data_stats,
+                        Simpson_data_stats,
+                        Chao1_data_stats)
 
 # save 
-fwrite(x=diversity_means_by_date, file = paste0(out_dir_git,"gtdb_diversity_means_by_date.csv"), sep = ",")
+fwrite(x=gtdb_diversity, file = paste0(out_dir_git,"gtdb_diversity.csv"), sep = ",")
 
-Shannon_data_test$type <- "Shannon"
-Simpson_data_test$type <- "Simpson"
-Chao1_data_test$type <- "Chao1"
-
-diversity_pval_by_date <- rbind(Shannon_data_test,
-                                Simpson_data_test,
-                                Chao1_data_test)
-
-# save 
-fwrite(x=diversity_pval_by_date, file = paste0(out_dir_git,"gtdb_diversity_pval_by_date.csv"), sep = ",")
 
 ######################################################################
 ######################################################################

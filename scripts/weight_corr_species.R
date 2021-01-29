@@ -269,7 +269,7 @@ df2 <- df1 %>%
 # clr transform per sample
 df2 <- df2 %>%
   group_by(pig,date) %>%
-  dplyr::mutate(all_bins_value = as.numeric(clr(all_bins_value)))
+  dplyr::mutate(all_bins_value = as.numeric(compositions::clr(all_bins_value)))
 
 
 ######################################################################
@@ -334,19 +334,15 @@ sample_df
 all <- inner_join(sample_df,df2) %>% 
   dplyr::filter(date=="t0"|date=="t2"|date=="t4"|date=="t6"| # select those with weight data 
                   date=="t8"|date=="t10") %>%
-  dplyr::select(weight,pig,date,all_bins_value,species,genus,family,class) %>% drop_na()
+  dplyr::select(weight,pig,date,all_bins_value,species,genus,family,class,breed,birth_day) %>% drop_na()
 
 # reorder dates 
 all$date  = factor(all$date, levels=c("t0","t2","t4","t6","t8","t10"))
 
 ######################################################################
 
-# # subset to frequent species
-# all$n=1
-# all_frequent <- all %>% 
-#   group_by(species,date) %>% 
-#   dplyr::mutate(num=sum(n)) %>% 
-#   dplyr::filter(num>20) 
+
+# Pearson testing correlations of weight with speacies abundance 
 
 
 last <- data.frame() # empty dataframe
@@ -368,14 +364,18 @@ res <- ddply(all, .(date,species), func)
 head(res)
 NROW(res)
 
-# filter out weak correlations 
+
+# multiple testing (fdr) correction with Bonferroni: create variable indicating number of tests
+res <- res %>% 
+  dplyr::mutate(padj=p.adjust(pval, method = "bonferroni")) 
+
 ress <- res %>% 
-  dplyr::filter(pval<0.01) %>%
-  dplyr::filter(!between(cor, -0.3, 0.3)) %>%
+  dplyr::filter(padj<=0.05) %>%
+  #dplyr::filter(!between(cor, -0.3, 0.3)) %>%
   dplyr::arrange(pval)
 
 NROW(ress)
-View(ress)
+head(ress)
 
 # fish out from the ress output 
 # selecting species and plot 
@@ -401,6 +401,7 @@ dev.off()
 ############################################################
 
 # abundance of which taxa correlate with final weight? 
+# none, only one at t4 with final weight
 
 
 end_weight <- all %>%
@@ -408,20 +409,22 @@ end_weight <- all %>%
   dplyr::select(pig,weight,species,genus,family,class)
 
 start_abund <- all %>%
-  dplyr::filter(date=="t0") %>%
+  dplyr::filter(date=="t4") %>%
   dplyr::select(pig,all_bins_value,species,genus,family,class)
 
 start_end <- inner_join(start_abund,end_weight) 
-
 
 start_end_res <- ddply(start_end, .(species), func)
 head(start_end_res)
 NROW(start_end_res)
 
-# filter out weak correlations 
+# multiple testing (fdr) correction with Bonferroni: create variable indicating number of tests
+start_end_res <- start_end_res %>% 
+  dplyr::mutate(padj=p.adjust(pval, method = "bonferroni")) 
+
 start_end_ress <- start_end_res %>% 
-  dplyr::filter(pval<0.05) %>%
-  dplyr::filter(!between(cor, -0.3, 0.3)) %>%
+  dplyr::filter(padj<=0.05) %>%
+  #dplyr::filter(!between(cor, -0.3, 0.3)) %>%
   dplyr::arrange(pval)
 
 NROW(start_end_ress)
@@ -446,3 +449,30 @@ for (row in 1:nrow(start_end_ress)) {
   
 }
 dev.off()
+
+
+# save results: 
+res$correlation_tested <- "corr_SpeciesAbundance_with_Host_weight"
+start_end_res$correlation_tested <- "corr_t4speciesAbundance_with_t10Host_weight"
+fwrite(x=res, file=paste0(out_dir_git,"gt_taxa_vs_host_weigth.csv"), sep = ",")
+fwrite(x=start_end_res, file=paste0(out_dir_git,"gt_taxa_vs_Final_host_weigth.csv"), sep = ",")
+
+
+# some viewing 
+
+start_end %>%
+  dplyr::filter(species=="CAG-83 sp001916855") %>%
+  ggplot(., aes(x=weight,y=all_bins_value))+
+  geom_point(size=0.5) +
+  #facet_wrap(~date, scale="free", shrink = TRUE)+
+  stat_smooth(method="lm", se=TRUE) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+all %>%
+  dplyr::filter(species=="UBA1777 sp002320035") %>%
+  dplyr::filter(date=="t0") %>%
+  ggplot(., aes(x=weight,y=all_bins_value))+
+  geom_point(size=0.5) +
+  #facet_wrap(~birth_day, scale="free", shrink = TRUE)+
+  stat_smooth(method="lm", se=TRUE) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
