@@ -534,25 +534,25 @@ sink()
 # Contig number and N50 distribution 
 
 # as numeric 
-df_90100_5$`N50 (scaffolds)` <- as.numeric(df_90100_5$`N50 (scaffolds)`)
-df_90100_5$`# scaffolds` <- as.numeric(df_90100_5$`# scaffolds`)
+df_90100_5$`N50 (contigs)` <- as.numeric(df_90100_5$`N50 (contigs)`)
+df_90100_5$`# contigs` <- as.numeric(df_90100_5$`# contigs`)
 
 sink(file = paste0(out_dir,"cm_numbers.txt"), 
      append = TRUE, type = c("output"))
-paste0("Nearly complete genomes, scaffolds stats :   ")
-summary(df_90100_5$`# scaffolds`)
-paste0("Nearly complete genomes, scaffolds N50 stats :   ")
-summary(df_90100_5$`N50 (scaffolds)`)
+paste0("Nearly complete genomes, contigs stats :   ")
+summary(df_90100_5$`# contigs`)
+paste0("Nearly complete genomes, contigs N50 stats :   ")
+summary(df_90100_5$`N50 (contigs)`)
 sink()
 
-pdf(paste0(out_dir,"cm_scaffolds_distribution.pdf"), height=4, width=5)
+
+pdf(paste0(out_dir,"cm_contigs_distribution.pdf"), height=4, width=5)
 # Distribution of contig number across bins 
 ggplot(df_90100_5, 
-       aes(x = `N50 (scaffolds)`)) + 
+       aes(x = `N50 (contigs)`)) + 
   geom_histogram(bins = 100, colour="black",fill="white") + 
   scale_x_log10() +
-  ggtitle("Distribution of scaffold N50 across nearly complete genomes") +
-  labs(x = "scaffold N50",
+  labs(x = "N50 (log10)",
        y = "Frequency")+
   theme_bw()+
   theme(axis.title.x=element_text(size=14),
@@ -585,16 +585,17 @@ toplot$type  = factor(toplot$type, levels=c(
   types[1],
   types[2]))
 
-toplot$`# scaffolds` <- as.numeric(toplot$`# scaffolds`)
+toplot$`# contigs` <- as.numeric(toplot$`# contigs`)
 toplot$`# predicted genes` <- as.numeric(toplot$`# predicted genes`)
+toplot$`N50 (contigs)` <- as.numeric(toplot$`N50 (contigs)`)
 
-plot_scaffolds <- ggplot(data= toplot, aes(x=`# scaffolds`, fill=type)) +
+plot_contigs <- ggplot(data= toplot, aes(x=`# contigs`, fill=type)) +
   geom_histogram(alpha=0.6, position = 'stack', binwidth=15) +
   scale_fill_manual(values=c("#6C6C6C", #grey
                              "#F8766D", #red
                              "#45B4B8" #blue
   )) + 
-  xlab("scaffolds") +
+  xlab("# contigs") +
   ylab("Frequency")+
   theme_minimal()+
   theme(axis.title.x=element_text(size=14),
@@ -603,6 +604,23 @@ plot_scaffolds <- ggplot(data= toplot, aes(x=`# scaffolds`, fill=type)) +
         axis.text.y=element_text(size=11))+
   labs(fill="") +
   lims(x=c(0,750))
+
+plot_N50 <- ggplot(data= toplot, aes(x=`N50 (contigs)`, fill=type)) +
+  geom_histogram(bins = 50, alpha=0.6, position = 'stack') + 
+  scale_x_log10() +
+  scale_fill_manual(values=c("#6C6C6C", #grey
+                             "#F8766D", #red
+                             "#45B4B8" #blue
+  )) + 
+  xlab("N50 (log10)") +
+  ylab("Frequency")+
+  theme_minimal()+
+  theme(axis.title.x=element_text(size=14),
+        axis.title.y=element_text(size=14),
+        axis.text.x=element_text(size=11),
+        axis.text.y=element_text(size=11))+
+  labs(fill="") 
+  
 
 
 plot_pred_genes <- ggplot(data= toplot, aes(x=`# predicted genes`, fill=type)) +
@@ -622,14 +640,29 @@ plot_pred_genes <- ggplot(data= toplot, aes(x=`# predicted genes`, fill=type)) +
   #scale_x_continuous(breaks=pretty(`# predicted genes`, length(`# predicted genes`)/2))+
   labs(fill="")
 
-plots <- ggarrange(plot_scaffolds,plot_pred_genes,cm_Compl_vs_Contam,nrow=1,
+plots <- ggarrange(plot_contigs,plot_pred_genes,cm_Compl_vs_Contam,nrow=1,
                    labels=c("A","B","C"),
                    common.legend=TRUE)
 
-pdf(paste0(out_dir,"cm_Compl_vs_Contam_scaffolds_genes.pdf"), width=7, height=4)
+plots_new <- ggarrange(plot_contigs,plot_N50,cm_Compl_vs_Contam,nrow=1,
+                   labels=c("A","B","C"),
+                   common.legend=TRUE)
+
+pdf(paste0(out_dir,"cm_Compl_vs_Contam_contigs_genes.pdf"), width=7, height=4)
 plots
 dev.off()
 
+
+pdf(paste0(out_dir,"cm_Compl_vs_Contam_contigs_genes_new.pdf"), width=7, height=4)
+plots_new
+dev.off()
+
+summary(as.numeric(toplot$`Genome size (bp)`))
+summary(as.numeric(toplot$`N50 (contigs)`))
+summary(as.numeric(toplot$`# marker sets`))
+
+summary(toplot$Completeness)
+summary(toplot$Contamination)
 
 
 ######################################################################

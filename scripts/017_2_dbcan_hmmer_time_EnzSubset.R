@@ -238,17 +238,17 @@ unique(df_part$date)
 
 significant <- all_pvalues %>%
   dplyr::filter(    enzID=="GH54"|
-                      enzID=="GT53"|
+                      #enzID=="GT53"|
                       enzID=="CBM71"|
                       enzID=="GT94"|
-                      enzID=="GH70"|
+                      #enzID=="GH70"|
                       enzID=="GH110"|
-                      enzID=="GH1"|
+                      #enzID=="GH1"|
                     enzID=="CE13"|
                     enzID=="GH25"|
                     enzID=="GH68"|
                   enzID=="GT85"|
-                  enzID=="CBM25") %>% 
+                  enzID=="AA3") %>% #CBM25
   dplyr::filter(p_value<0.05) #%>%
   #dplyr::arrange(p_value)
 tail(significant)
@@ -392,11 +392,12 @@ make_species_CAZ_plots <- function(x) {
           legend.text.align = 1,
           legend.title = element_text(size=7),
           legend.text = element_text(size=6),
-          legend.position="right",
-          legend.justification="right",
+          legend.position="top",
+          #legend.justification="right",
           legend.margin=margin(0,0,0,0),
           legend.box.margin=margin(-6,-6,-6,-6), # get closer farther from zero to get it closer to edge 
-          axis.ticks.x = element_blank())+
+          axis.ticks.x = element_blank(),
+          strip.text = element_text(angle = 90))+
     labs(fill="percentage of species \n carrying the enzyme")+
     scale_y_discrete(labels=function(x){sub("\\s", "\n", x)})
   return(p)
@@ -461,33 +462,33 @@ make_enzyme_boxplots <- function(x) {
     scale_fill_gaio8()+
     #scale_fill_distiller(type = "div", palette = "Spectral") + # this was for the heatmap 
     facet_wrap(~enzymeID, scales = "free_y", ncol = 3) +
-    labs(x = "sample size \n and timepoint", y = "enzyme log abundance", fill = "avg. abundance (log)")+
+    labs(x = "sample size and timepoint", y = "enzyme abundance (log)", fill = "avg. abundance (log)")+
     theme_bw()+
     theme(legend.position="none",
-          axis.text.y=element_text(size = 4),
+          axis.text.y=element_text(size = 5),
           axis.ticks.length.y = unit(.05, "cm"),
           axis.text.x=element_text(size=5,angle=90,vjust=0.5))+
     geom_text(aes(x="ss_piglets",y=Inf, label=paste0("n=",n_piggies)),
-              size=1.8,colour="black", hjust = 1.5, angle=90, inherit.aes=TRUE, parse=FALSE,check_overlap = TRUE)+
+              size=1.5,colour="black", hjust = 1.5, angle=90, inherit.aes=TRUE, parse=FALSE,check_overlap = TRUE)+
     geom_text(aes(x="ss_sows",y=Inf, label=paste0("n=",n_moms)),
-              size=1.8,colour="black", hjust = 1.5, angle=90, inherit.aes=TRUE, parse=FALSE,check_overlap = TRUE)
+              size=1.5,colour="black", hjust = 1.5, angle=90, inherit.aes=TRUE, parse=FALSE,check_overlap = TRUE)
   
   return(p)
   
 }
 
-b <- make_species_CAZ_plots(s_part)
+b <- make_species_CAZ_plots(s_part) 
 
 a <- make_enzyme_boxplots(df_part)
 
 
 ####
 # combining the plots: CAZ time trend boxplots with species per enzymeID info: 
-A <- plot_grid(a,b,ncol=2)
+A <- plot_grid(a,b,ncol=2, labels = c("A","B"))
 ####
 
 
-pdf(paste0(out_dir,"dbcan_HMMER_time_species_sub.pdf"))
+pdf(paste0(out_dir,"dbcan_HMMER_time_species_sub.pdf"), width=6.5, height=4.5)
 A
 dev.off()
 

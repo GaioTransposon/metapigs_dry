@@ -35,7 +35,7 @@ out_dir = "/Users/12705859/Desktop/metapigs_dry/checkm/"  # local
 
 # counts data 
 
-# upload bins with counts (sample-dereplicated- output of 7.R)
+# upload bins with counts (sample-dereplicated- output of 7.R, now 003_depths_to_counts.R)
 
 no_reps_all <- read.csv(paste0(middle_dir,"no_reps_all.csv"), 
                         na.strings=c("","NA"),
@@ -75,7 +75,7 @@ colnames(newdata)[colnames(newdata)=="Bin Id"] <- "bin"
 colnames(newdata)[colnames(newdata)=="Taxonomy (contained)"] <- "taxa"
 
 newdata <- newdata %>%
-  select(pig,bin,taxa)
+  dplyr::select(pig,bin,taxa)
 
 ######################################################################
 
@@ -222,8 +222,31 @@ gOTU = otu_table(gOTU_mat, taxa_are_rows = TRUE)
 TAX = tax_table(taxa_mat)
 samples = sample_data(sample_df)
 
+############################################################################################################
+############################################################################################################
+############################################################################################################
 
-######################
+
+# Prepare function for rarefaction: 
+
+myrarefy_fun <- function(your_phyloseq_obj) {
+  
+  # removal of samples with low count (any sample with a count lower than 10k)
+  r <- which(colSums(otu_table(your_phyloseq_obj))<10000) 
+  to_remove <- rownames(as.data.frame(r))
+  
+  carbom_noFailSamples <- prune_samples(!(sample_names(your_phyloseq_obj) %in% to_remove), your_phyloseq_obj)
+  
+  # RAREFY
+  carbom_rarefied = rarefy_even_depth(carbom_noFailSamples, 
+                                      sample.size = min(sample_sums(carbom_noFailSamples)), 
+                                      rngseed = 42)
+  return(carbom_rarefied)
+  
+}
+
+############################################################################################################
+
 
 
 # ORDINATION 
@@ -238,8 +261,11 @@ standf = function(x, t=total) round(t * (x / sum(x)))
 carbom = transform_sample_counts(carbom, standf)
 sample_variables(carbom)
 
-# Remove taxa not seen more than 10 times in at least a 30% of the samples 
-carbom_abund <- filter_taxa(carbom, function(x) sum(x > 10) > (0.3*length(x)), TRUE)
+
+# # Remove taxa if not seen in at least 30% of the samples 
+# carbom_abund <- filter_taxa(carbom, function(x) sum(x > 1) > (0.3*length(x)), TRUE)
+
+carbom_abund <- carbom
 
 carbom_abund.ord <- ordinate(carbom_abund, "NMDS", "bray")
 
@@ -300,51 +326,45 @@ dev.off()
 # NORMALIZATION BY RAREFACTION
 carbom <- phyloseq(gOTU,TAX,samples)
 # SUBSETTING phyloseq obejct
-carbom <- subset_samples(carbom, (date %in% c("t0","t1","t2","t3","t4","t5", "t6","t7","t8","t9")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
+carbom <- subset_samples(carbom, (date %in% c("t0","t2","t4","t6","t8","t10")))
 
-# Remove taxa not seen more than 5 times in at least a 20% of the samples 
-carbom_abund <- filter_taxa(carbom, function(x) sum(x > 5) > (0.2*length(x)), TRUE)
 
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
+
+
+c <- carbom_rarefied
+
+c
+
+c1.2 <- filter_taxa(c, function(x) sum(x > 100) > (0.2*length(x)), TRUE)
+c1.2
+
+
+# out of these, take the ones with the highest inter-samples variance 
+c2 = filter_taxa(c1.2, function(x) var(x) > 40000000, TRUE)
+c2
+
+
+carbom_abund <- c2
 
 random_tree = rtree(ntaxa(carbom_abund), rooted=TRUE, tip.label=taxa_names(carbom_abund))
 physeq1 = merge_phyloseq(carbom_abund,random_tree)
 
 # HEATMAP time - genus, family, order, etc ...
 pdf(paste0(out_dir,"cm_phylo_heatmap.pdf"))
-plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
-             taxa.label = "species", taxa.order="species",
-             sample.order = "date", trans=identity_trans(),
-             low="blue", high="red", na.value="white") +
-  ggtitle(label = "Microbe Species Diversity") 
-plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
-             taxa.label = "genus", taxa.order="species",
-             sample.order = "date", trans=identity_trans(),
-             low="blue", high="red", na.value="white") +
-  ggtitle(label = "Microbe Genus Diversity") 
-plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
-             taxa.label = "family", taxa.order="species",
-             sample.order = "date", trans=identity_trans(),
-             low="blue", high="red", na.value="white") +
-  ggtitle(label = "Microbe Family Diversity") 
-plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
-             taxa.label = "order", taxa.order="species",
-             sample.order = "date", trans=identity_trans(),
-             low="blue", high="red", na.value="white") +
-  ggtitle(label = "Microbe Order Diversity") 
-plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
-             taxa.label = "class", taxa.order="species",
-             sample.order = "date", trans=identity_trans(),
-             low="blue", high="red", na.value="white") +
-  ggtitle(label = "Microbe Class Diversity") 
-plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
-             taxa.label = "phylum", taxa.order="species",
-             sample.order = "date", trans=identity_trans(),
-             low="blue", high="red", na.value="white") +
-  ggtitle(label = "Microbe Phylum Diversity") 
+plot_heatmap(physeq1, 
+             taxa.label = "species", 
+             sample.order = "date") +
+  facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle(label = paste0("Diversity of GTDB-predicted species in the piglet population"))
+plot_heatmap(physeq1, 
+             taxa.label = "genus", 
+             sample.order = "date") +
+  facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle(label = paste0("Diversity of GTDB-predicted species in the piglet population"))
 dev.off()
 
 ######################

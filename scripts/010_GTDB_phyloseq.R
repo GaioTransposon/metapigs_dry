@@ -366,6 +366,28 @@ samples = sample_data(sample_df)
 ############################################################################################################
 ############################################################################################################
 
+
+# Prepare function for rarefaction: 
+
+myrarefy_fun <- function(your_phyloseq_obj) {
+  
+  # removal of samples with low count (any sample with a count lower than 10k)
+  r <- which(colSums(otu_table(your_phyloseq_obj))<10000) 
+  to_remove <- rownames(as.data.frame(r))
+  
+  carbom_noFailSamples <- prune_samples(!(sample_names(your_phyloseq_obj) %in% to_remove), your_phyloseq_obj)
+  
+  # RAREFY
+  carbom_rarefied = rarefy_even_depth(carbom_noFailSamples, 
+                                      sample.size = min(sample_sums(carbom_noFailSamples)), 
+                                      rngseed = 42)
+  return(carbom_rarefied)
+  
+}
+
+############################################################################################################
+
+
 # PLOT
 
 ######################
@@ -384,9 +406,10 @@ carbom = transform_sample_counts(carbom, standf)
 sample_variables(carbom)
 
 
-# Remove taxa not seen more than 10 times in at least a 30% of the samples 
-carbom_abund <- filter_taxa(carbom, function(x) sum(x > 10) > (0.3*length(x)), TRUE)
+# # Remove taxa if not seen in at least 30% of the samples 
+# carbom_abund <- filter_taxa(carbom, function(x) sum(x > 1) > (0.3*length(x)), TRUE)
 
+carbom_abund <- carbom 
 
 carbom_abund.ord <- ordinate(carbom_abund, "NMDS", "bray")
 
@@ -404,11 +427,39 @@ gt_ordination_plot #+
 dev.off()
 
 
+# variance calc: 
+
+x <- gt_ordination_plot$data %>%
+  dplyr::select(date,NMDS1,NMDS2)
+x <- as.data.frame(x) 
+x$date <- as.character(x$date)
+head(x)
+
+x %>%
+  group_by(date) %>%
+  tally()
+
+with(x, tapply(NMDS1, date, var)) #NMDS1
+with(x, tapply(NMDS2, date, var)) #NMDS2
+
+aov <- anova(lm(NMDS1 ~ date, data = x))
+aov
+TukeyHSD(aov)
+
+
+
+
+# Compute the analysis of variance
+res.aov <- aov(NMDS1 ~ date, data = x)
+
+pairwise.t.test(x$NMDS1, x$date,
+                p.adjust.method = "bonferroni")
+
 ########################################################################################
 
 # NETWORK ANALYSIS 
 
-ig = make_network(carbom_abund, type = "samples", distance = "bray", max.dist = 0.55)
+ig = make_network(carbom_abund, type = "samples", distance = "bray", max.dist = 0.60)
 gt_network_plot <- plot_network(ig, carbom_abund, color = "date", shape = "cohort", line_weight = 0.3, 
                                 label = NULL, point_size = 1)+
   theme(legend.position = "bottom")+
@@ -419,6 +470,18 @@ pdf(paste0(out_dir,"gt_phylo_network.pdf"))
 gt_network_plot
 dev.off()
 
+
+x <- gt_network_plot$data %>%
+  dplyr::select(date,x,y)
+x <- as.data.frame(x) 
+x$date <- as.character(x$date)
+head(x)
+
+with(x, tapply(x, date, var)) #PC1
+with(x, tapply(y, date, var)) #PC2
+
+aov <- anova(lm(x ~ date, data = x))
+aov
 
 ##############################################
 
@@ -448,14 +511,25 @@ carbom <- phyloseq(gOTU,TAX,samples)
 # SUBSETTING phyloseq obejct
 carbom <- subset_samples(carbom, (date %in% c("t0","t2","t4","t6","t8","t10")))
 
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE,
-                           rngseed = 42)
 
-# Remove taxa not seen more than 5 times in at least a 20% of the samples 
-carbom_abund <- filter_taxa(carbom, function(x) sum(x > 5) > (0.2*length(x)), TRUE)
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
 
+
+c <- carbom_rarefied
+
+c
+
+c1.2 <- filter_taxa(c, function(x) sum(x > 100) > (0.2*length(x)), TRUE)
+c1.2
+
+
+# out of these, take the ones with the highest inter-samples variance 
+c2 = filter_taxa(c1.2, function(x) var(x) > 40000000, TRUE)
+c2
+
+
+carbom_abund <- c2
 
 random_tree = rtree(ntaxa(carbom_abund), rooted=TRUE, tip.label=taxa_names(carbom_abund))
 physeq1 = merge_phyloseq(carbom_abund,random_tree)
@@ -469,31 +543,31 @@ plot_heatmap(physeq1,
   facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
   theme(plot.title = element_text(hjust = 0.5)) +
   ggtitle(label = paste0("Diversity of GTDB-predicted species in the piglet population"))
-plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
-             taxa.label = "species", taxa.order="species",
-             sample.order = "date", trans=identity_trans(),
-             low="blue", high="red", na.value="white") +
-  facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
-  theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle(label = paste0("Diversity of GTDB-predicted species in the piglet population"))
+# plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
+#              taxa.label = "species", taxa.order="species",
+#              sample.order = "date", trans=identity_trans(),
+#              low="blue", high="red", na.value="white") +
+#   facet_grid(~ date, switch = "x", scales = "free_x", space = "free_x")+
+#   theme(plot.title = element_text(hjust = 0.5)) +
+#   ggtitle(label = paste0("Diversity of GTDB-predicted species in the piglet population"))
 dev.off()
 
 
 # HEATMAP time - cohorts
 pdf(paste0(out_dir,"gt_phylo_heatmap_cohorts.pdf"))
-plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
-             taxa.label = "species", taxa.order="species",
-             sample.order = "date", trans=identity_trans(),
-             low="blue", high="red", na.value="white") +
-  facet_wrap(~ cohort, switch = "x", scales = "free_x")+
-  theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle(label = "Microbe Species Diversity")
 plot_heatmap(physeq1, 
              taxa.label = "species", 
              sample.order = "date") +
   facet_wrap(~ cohort, switch = "x", scales = "free_x")+
   theme(plot.title = element_text(hjust = 0.5)) +
   ggtitle(label = paste0("Diversity of GTDB-predicted species in the piglet population"))
+# plot_heatmap(physeq1, method = "MDS", distance="unifrac",weighted=TRUE, 
+#              taxa.label = "species", taxa.order="species",
+#              sample.order = "date", trans=identity_trans(),
+#              low="blue", high="red", na.value="white") +
+#   facet_wrap(~ cohort, switch = "x", scales = "free_x")+
+#   theme(plot.title = element_text(hjust = 0.5)) +
+#   ggtitle(label = "Microbe Species Diversity")
 dev.off()
 
 ##############################################
@@ -584,9 +658,30 @@ dev.off()
 
 # LARGE HEATMAP
 
-# Remove taxa not seen more than 1 times in at least a 20% of the samples 
-carbom_abund <- filter_taxa(carbom, function(x) sum(x > 1) > (0.2*length(x)), TRUE)
 
+# NORMALIZATION BY RAREFACTION
+carbom <- phyloseq(gOTU,TAX,samples)
+# SUBSETTING phyloseq obejct
+carbom <- subset_samples(carbom, (date %in% c("t0","t2","t4","t6","t8","t10")))
+
+
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
+
+
+c <- carbom_rarefied
+
+
+c1.2 <- filter_taxa(c, function(x) sum(x > 100) > (0.2*length(x)), TRUE)
+c1.2
+
+
+# out of these, take the ones with the highest inter-samples variance 
+c2 = filter_taxa(c1.2, function(x) var(x) > 4000000, TRUE)
+c2
+
+
+carbom_abund <- c2
 
 random_tree = rtree(ntaxa(carbom_abund), rooted=TRUE, tip.label=taxa_names(carbom_abund))
 physeq1 = merge_phyloseq(carbom_abund,random_tree)
@@ -614,12 +709,13 @@ dev.off()
 carbom <- phyloseq(gOTU,TAX,samples)
 # SUBSETTING phyloseq obejct
 carbom <- subset_samples(carbom, (date %in% c("t0","t1","t2","t3","t4","t5", "t6","t7","t8","t9","t10")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
 
-gt_diversity_samples <- plot_richness(carbom, measures=c("Chao1","Shannon", "ACE", "Shannon", "Simpson", "InvSimpson", "Fisher"), 
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
+
+c <- carbom_rarefied
+
+gt_diversity_samples <- plot_richness(c, measures=c("Chao1","Shannon", "ACE", "Shannon", "Simpson", "InvSimpson", "Fisher"), 
                                       color="date", x="date") +
   guides(colour = guide_legend(nrow = 1))+
   theme(legend.position="top")
@@ -754,17 +850,14 @@ fwrite(x=gtdb_diversity, file = paste0(out_dir_git,"gtdb_diversity.csv"), sep = 
 carbom <- phyloseq(gOTU,TAX,samples)
 carbom <- subset_samples(carbom, (date %in% c("t0")))
 carbom <- subset_samples(carbom, (cohort %in% c("Control")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
 
 
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-ctrlt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
+c <- carbom_rarefied
+
+carbom.ord <- ordinate(c, "PCoA", "bray")
+ctrlt0 <- plot_ordination(c, carbom.ord, type="samples", color="pen", shape="pen",
                           title="Control") + 
   geom_point(size=2) +
   facet_wrap(~date, scales = c("free"))
@@ -772,15 +865,13 @@ ctrlt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape
 carbom <- phyloseq(gOTU,TAX,samples)
 carbom <- subset_samples(carbom, (date %in% c("t8")))
 carbom <- subset_samples(carbom, (cohort %in% c("Control")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
 
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-ctrlt8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
+c <- carbom_rarefied
+
+carbom.ord <- ordinate(c, "PCoA", "bray")
+ctrlt8 <- plot_ordination(c, carbom.ord, type="samples", color="pen", shape="pen",
                           title="Control") + 
   geom_point(size=2) +
   facet_wrap(~date, scales = c("free"))
@@ -790,15 +881,13 @@ ctrlt8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape
 carbom <- phyloseq(gOTU,TAX,samples)
 carbom <- subset_samples(carbom, (date %in% c("t0")))
 carbom <- subset_samples(carbom, (cohort %in% c("D-Scour")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
 
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-dscourt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
+c <- carbom_rarefied
+
+carbom.ord <- ordinate(c, "PCoA", "bray")
+dscourt0 <- plot_ordination(c, carbom.ord, type="samples", color="pen", shape="pen",
                             title="D-Scour") + 
   geom_point(size=2) +
   facet_wrap(~date, scales = c("free"))
@@ -806,15 +895,13 @@ dscourt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", sha
 carbom <- phyloseq(gOTU,TAX,samples)
 carbom <- subset_samples(carbom, (date %in% c("t8")))
 carbom <- subset_samples(carbom, (cohort %in% c("D-Scour")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
 
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-dscourt8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
+c <- carbom_rarefied
+
+carbom.ord <- ordinate(c, "PCoA", "bray")
+dscourt8 <- plot_ordination(c, carbom.ord, type="samples", color="pen", shape="pen",
                             title="D-Scour") + 
   geom_point(size=2) +
   facet_wrap(~date, scales = c("free"))
@@ -824,15 +911,13 @@ dscourt8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", sha
 carbom <- phyloseq(gOTU,TAX,samples)
 carbom <- subset_samples(carbom, (date %in% c("t0")))
 carbom <- subset_samples(carbom, (cohort %in% c("ColiGuard")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
 
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-coligt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
+c <- carbom_rarefied
+
+carbom.ord <- ordinate(c, "PCoA", "bray")
+coligt0 <- plot_ordination(c, carbom.ord, type="samples", color="pen", shape="pen",
                            title="ColiGuard") + 
   geom_point(size=2) +
   facet_wrap(~date, scales = c("free"))
@@ -840,15 +925,13 @@ coligt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shap
 carbom <- phyloseq(gOTU,TAX,samples)
 carbom <- subset_samples(carbom, (date %in% c("t8")))
 carbom <- subset_samples(carbom, (cohort %in% c("ColiGuard")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
 
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-coligt8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
+c <- carbom_rarefied
+
+carbom.ord <- ordinate(c, "PCoA", "bray")
+coligt8 <- plot_ordination(c, carbom.ord, type="samples", color="pen", shape="pen",
                            title="ColiGuard") + 
   geom_point(size=2) +
   facet_wrap(~date, scales = c("free"))
@@ -858,15 +941,13 @@ coligt8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shap
 carbom <- phyloseq(gOTU,TAX,samples)
 carbom <- subset_samples(carbom, (date %in% c("t0")))
 carbom <- subset_samples(carbom, (cohort %in% c("Neomycin")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
 
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-neot0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
+c <- carbom_rarefied
+
+carbom.ord <- ordinate(c, "PCoA", "bray")
+neot0 <- plot_ordination(c, carbom.ord, type="samples", color="pen", shape="pen",
                          title="Neomycin") + 
   geom_point(size=2) +
   facet_wrap(~date, scales = c("free"))
@@ -874,15 +955,13 @@ neot0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape=
 carbom <- phyloseq(gOTU,TAX,samples)
 carbom <- subset_samples(carbom, (date %in% c("t8")))
 carbom <- subset_samples(carbom, (cohort %in% c("Neomycin")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
 
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-neot8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
+c <- carbom_rarefied
+
+carbom.ord <- ordinate(c, "PCoA", "bray")
+neot8 <- plot_ordination(c, carbom.ord, type="samples", color="pen", shape="pen",
                          title="Neomycin") + 
   geom_point(size=2) +
   facet_wrap(~date, scales = c("free"))
@@ -892,15 +971,13 @@ neot8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape=
 carbom <- phyloseq(gOTU,TAX,samples)
 carbom <- subset_samples(carbom, (date %in% c("t0")))
 carbom <- subset_samples(carbom, (cohort %in% c("NeoD")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
 
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-neoDt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
+c <- carbom_rarefied
+
+carbom.ord <- ordinate(c, "PCoA", "bray")
+neoDt0 <- plot_ordination(c, carbom.ord, type="samples", color="pen", shape="pen",
                           title="NeoD") + 
   geom_point(size=2) +
   facet_wrap(~date, scales = c("free"))
@@ -908,15 +985,13 @@ neoDt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape
 carbom <- phyloseq(gOTU,TAX,samples)
 carbom <- subset_samples(carbom, (date %in% c("t8")))
 carbom <- subset_samples(carbom, (cohort %in% c("NeoD")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
 
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-neoDt8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
+c <- carbom_rarefied
+
+carbom.ord <- ordinate(c, "PCoA", "bray")
+neoDt8 <- plot_ordination(c, carbom.ord, type="samples", color="pen", shape="pen",
                           title="NeoD") + 
   geom_point(size=2) +
   facet_wrap(~date, scales = c("free"))
@@ -926,15 +1001,13 @@ neoDt8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape
 carbom <- phyloseq(gOTU,TAX,samples)
 carbom <- subset_samples(carbom, (date %in% c("t0")))
 carbom <- subset_samples(carbom, (cohort %in% c("NeoC")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
 
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
-neoCt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
+c <- carbom_rarefied
+
+carbom.ord <- ordinate(c, "PCoA", "bray")
+neoCt0 <- plot_ordination(c, carbom.ord, type="samples", color="pen", shape="pen",
                           title="NeoC") + 
   geom_point(size=2) +
   facet_wrap(~date, scales = c("free"))
@@ -942,16 +1015,13 @@ neoCt0 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape
 carbom <- phyloseq(gOTU,TAX,samples)
 carbom <- subset_samples(carbom, (date %in% c("t8")))
 carbom <- subset_samples(carbom, (cohort %in% c("NeoC")))
-# RAREFY
-carbom = rarefy_even_depth(carbom,
-                           replace=TRUE, 
-                           rngseed = 42)
-# Remove taxa not seen more than 10 times in at least a 50% of the samples 
-carbom <- filter_taxa(carbom, function(x) sum(x > 10) > (0.5*length(x)), TRUE)
 
-carbom.ord <- ordinate(carbom, "PCoA", "bray")
+# cut out samples with extremely low counts and RAREFY: 
+carbom_rarefied <- myrarefy_fun(carbom)
+c <- carbom_rarefied
 
-neoCt8 <- plot_ordination(carbom, carbom.ord, type="samples", color="pen", shape="pen",
+carbom.ord <- ordinate(c, "PCoA", "bray")
+neoCt8 <- plot_ordination(c, carbom.ord, type="samples", color="pen", shape="pen",
                           title="NeoC") + 
   geom_point(size=2) +
   facet_wrap(~date, scales = c("free"))
@@ -1051,11 +1121,9 @@ my.theme <- theme(axis.title.x = element_text(size=8),
 
 weight_corr_plot <- function(ccc) {
   
-  # RAREFY
-  ccc = rarefy_even_depth(ccc,
-                          replace=TRUE, 
-                          rngseed = 42)
-  carbom.ord <- ordinate(ccc, "PCoA", "bray")
+  # cut out samples with extremely low counts and RAREFY: 
+  carbom_rarefied <- myrarefy_fun(ccc)
+  carbom.ord <- ordinate(carbom_rarefied, "PCoA", "bray")
   mydf <- as.data.frame(carbom.ord$vectors)
   mydf$sample <- rownames(mydf)
   mydf <- mydf %>%
@@ -1101,11 +1169,9 @@ weight_corr_plot <- function(ccc) {
 
 weight_corr_output <- function(ccc) {
   
-  # RAREFY
-  ccc = rarefy_even_depth(ccc,
-                          replace=TRUE, 
-                          rngseed = 42)
-  carbom.ord <- ordinate(ccc, "PCoA", "bray")
+  # cut out samples with extremely low counts and RAREFY: 
+  carbom_rarefied <- myrarefy_fun(ccc)
+  carbom.ord <- ordinate(carbom_rarefied, "PCoA", "bray")
   mydf <- as.data.frame(carbom.ord$vectors)
   mydf$sample <- rownames(mydf)
   mydf <- mydf %>%
@@ -1174,17 +1240,12 @@ fwrite(x=weight_stats, file = paste0(out_dir_git,"gtdb_weight.csv"), sep = ",")
 
 breed_corr_plot <- function(ccc) {
   
-  # RAREFY
-  ccc = rarefy_even_depth(ccc,
-                          replace=TRUE, 
-                          rngseed = 42)
+  # cut out samples with extremely low counts and RAREFY: 
+  carbom_rarefied <- myrarefy_fun(ccc)
   
-  # Remove taxa not seen more than 2 times in at least a 20% of the samples 
-  ccc_abund <- filter_taxa(ccc, function(x) sum(x > 2) > (0.2*length(x)), TRUE)
+  ccc.ord <- ordinate(carbom_rarefied, "PCoA", "bray")
   
-  ccc.ord <- ordinate(ccc_abund, "PCoA", "bray")
-  
-  the_breed_plot <- plot_ordination(ccc_abund, ccc.ord, type="samples", color="breed") + 
+  the_breed_plot <- plot_ordination(carbom_rarefied, ccc.ord, type="samples", color="breed") + 
     geom_point(size=1)  +
     theme_bw() +
     theme(legend.position = "bottom",
@@ -1193,7 +1254,7 @@ breed_corr_plot <- function(ccc) {
           axis.title.x=element_text(size = 8),
           axis.title.y=element_text(size = 8),
           strip.text = element_text(size=8)) +
-    ggtitle(paste0(sample_data(ccc_abund)$date)[1])+
+    ggtitle(paste0(sample_data(carbom_rarefied)$date)[1])+
     facet_wrap(~birth_day) +
     scale_color_brewer(palette = "Dark2")+
     guides(col = guide_legend(nrow = 4, title.position = "top"))
@@ -1203,17 +1264,12 @@ breed_corr_plot <- function(ccc) {
 
 breed_corr_stats <- function(ccc) {
   
-  # RAREFY
-  ccc = rarefy_even_depth(ccc,
-                          replace=TRUE, 
-                          rngseed = 42)
+  # cut out samples with extremely low counts and RAREFY: 
+  carbom_rarefied <- myrarefy_fun(ccc)
   
-  # Remove taxa not seen more than 2 times in at least a 20% of the samples 
-  ccc_abund <- filter_taxa(ccc, function(x) sum(x > 2) > (0.2*length(x)), TRUE)
+  ccc.ord <- ordinate(carbom_rarefied, "PCoA", "bray")
   
-  ccc.ord <- ordinate(ccc_abund, "PCoA", "bray")
-  
-  myd <- plot_ordination(ccc_abund, ccc.ord, type="samples", color="breed") 
+  myd <- plot_ordination(carbom_rarefied, ccc.ord, type="samples", color="breed") 
   
   x_axis1 <- dunnTest(myd$data$Axis.1~myd$data$breed,data=myd$data,method = "bonferroni")
   x_axis1 <- as.data.frame(x_axis1$res)
@@ -1233,6 +1289,7 @@ breed_corr_stats <- function(ccc) {
 
 ########
 
+
 age_breed_plot_t0 <- breed_corr_plot(subset_samples(phyloseq(gOTU,TAX,samples), (date %in% c("t0"))))
 age_breed_plot_t2 <- breed_corr_plot(subset_samples(phyloseq(gOTU,TAX,samples), (date %in% c("t2"))))
 age_breed_plot_t4 <- breed_corr_plot(subset_samples(phyloseq(gOTU,TAX,samples), (date %in% c("t4"))))
@@ -1244,7 +1301,9 @@ all_breed_and_age_plot <- ggarrange(age_breed_plot_t0,
                                     nrow=3)
 
 ########
-breed_subset <- subset_samples(carbom, (breed %in% c("DxL","DxLW") & birth_day %in% c("2017-01-08")))
+
+breed_subset <- subset_samples(phyloseq(gOTU,TAX,samples), (breed %in% c("DxL","DxLW") & birth_day %in% c("2017-01-08")))
+
 # plots
 breed_plot_t0 <- breed_corr_plot(subset_samples(breed_subset, (date %in% c("t0"))))
 breed_plot_t2 <- breed_corr_plot(subset_samples(breed_subset, (date %in% c("t2"))))
@@ -1277,17 +1336,12 @@ fwrite(x=breed_stats, file = paste0(out_dir_git,"gtdb_breed.csv"), sep = ",")
 
 age_corr_plot <- function(ccc) {
   
-  # RAREFY
-  ccc = rarefy_even_depth(ccc,
-                          replace=TRUE, 
-                          rngseed = 42)
+  # cut out samples with extremely low counts and RAREFY: 
+  carbom_rarefied <- myrarefy_fun(ccc)
+
+  ccc.ord <- ordinate(carbom_rarefied, "PCoA", "bray")
   
-  # Remove taxa not seen more than 2 times in at least a 20% of the samples 
-  ccc_abund <- filter_taxa(ccc, function(x) sum(x > 2) > (0.2*length(x)), TRUE)
-  
-  ccc.ord <- ordinate(ccc_abund, "PCoA", "bray")
-  
-  the_age_plot <- plot_ordination(ccc_abund, ccc.ord, type="samples", color="birth_day") + 
+  the_age_plot <- plot_ordination(carbom_rarefied, ccc.ord, type="samples", color="birth_day") + 
     geom_point(size=1)  +
     theme_bw() +
     theme(legend.position = "bottom",
@@ -1296,7 +1350,7 @@ age_corr_plot <- function(ccc) {
           axis.title.x=element_text(size = 8),
           axis.title.y=element_text(size = 8),
           strip.text = element_text(size=8)) +
-    ggtitle(paste0(sample_data(ccc_abund)$date)[1])+
+    ggtitle(paste0(sample_data(carbom_rarefied)$date)[1])+
     facet_wrap(~breed) +
     scale_color_jco()+
     guides(col = guide_legend(nrow = 4, title.position = "top"))
@@ -1306,17 +1360,12 @@ age_corr_plot <- function(ccc) {
 
 age_corr_stats <- function(ccc) {
   
-  # RAREFY
-  ccc = rarefy_even_depth(ccc,
-                          replace=TRUE, 
-                          rngseed = 42)
+  # cut out samples with extremely low counts and RAREFY: 
+  carbom_rarefied <- myrarefy_fun(ccc)
   
-  # Remove taxa not seen more than 2 times in at least a 20% of the samples 
-  ccc_abund <- filter_taxa(ccc, function(x) sum(x > 2) > (0.2*length(x)), TRUE)
+  ccc.ord <- ordinate(carbom_rarefied, "PCoA", "bray")
   
-  ccc.ord <- ordinate(ccc_abund, "PCoA", "bray")
-  
-  myd <- plot_ordination(ccc_abund, ccc.ord, type="samples", color="birth_day") 
+  myd <- plot_ordination(carbom_rarefied, ccc.ord, type="samples", color="birth_day") 
   
   x_axis1 <- dunnTest(myd$data$Axis.1~myd$data$birth_day,data=myd$data,method = "bonferroni")
   x_axis1 <- as.data.frame(x_axis1$res)
@@ -1335,7 +1384,8 @@ age_corr_stats <- function(ccc) {
 }
 
 
-age_subset <- subset_samples(carbom, (birth_day %in% c("2017-01-08","2017-01-11") & breed %in% c("DxL")))
+age_subset <- subset_samples(phyloseq(gOTU,TAX,samples), (birth_day %in% c("2017-01-08","2017-01-11") & breed %in% c("DxL")))
+
 # plots
 age_plot_t0 <- age_corr_plot(subset_samples(age_subset, (date %in% c("t0"))))
 age_plot_t2 <- age_corr_plot(subset_samples(age_subset, (date %in% c("t2"))))
@@ -1380,12 +1430,12 @@ dev.off()
 #############################################
 
 age_stats_sign <- age_stats %>%
-  dplyr::select(P.adj,group_analyzed,group,Comparison) %>%
+  dplyr::select(P.adj,group,subgroup,Comparison) %>%
   dplyr::filter(P.adj<0.05) %>%
   dplyr::arrange(P.adj)
   
 breed_stats_sign <- breed_stats %>%
-  dplyr::select(P.adj,group_analyzed,group,Comparison) %>%
+  dplyr::select(P.adj,group,subgroup,Comparison) %>%
   dplyr::filter(P.adj<0.05) %>%
   dplyr::arrange(P.adj)
 

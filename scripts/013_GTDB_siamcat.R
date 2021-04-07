@@ -569,9 +569,13 @@ plot_all <- function(df) {
                      color = "black", size=0.5)+
           scale_color_discrete(drop=FALSE) +
           labs(color="interval")+
-          theme(axis.title.x=element_blank(),
+          xlab("fold change")+
+          theme_bw()+
+          theme(axis.title.x=element_text(size=10),
                 axis.text.y=element_text(size=3), 
-                axis.title.y=element_blank()))
+                axis.title.y=element_blank(),
+                panel.grid.minor = element_line(size = 0.1), 
+                panel.grid.major = element_line(size = 0.1)))
 }
 
 
@@ -610,14 +614,21 @@ fold_changes_plot <- z %>%
   geom_bar(stat="identity", position="dodge")+
   theme_minimal()+
   labs(fill="fold change",
-       y="significant abundance shifts (counts)",
+       y="significant \n abundance shifts \n (counts)",
        x="time interval") +
-  theme(legend.position = c(0.8, 0.9))+
+  theme(legend.position = "top" ,#c(0.8, 0.9),
+        axis.title.x=element_text(size=10),
+        axis.text.x=element_text(size=8),
+        axis.title.y=element_text(size=10), 
+        axis.text.y=element_text(size=8))+
+  ylim(0,135)+
   geom_text(aes(label=prop), position=position_dodge(width=0.9), vjust=-0.25, size=3)
 
+myleg <- get_legend(fold_changes_plot)
+p <- fold_changes_plot + theme(legend.position = "none")
 
-pdf(paste0(out_dir,"gt_siamcat_time_pos_vs_neg.pdf"))
-fold_changes_plot
+pdf(paste0(out_dir,"gt_siamcat_time_pos_vs_neg.pdf"), width = 6.7, height = 1.5)
+p
 dev.off()
 
 
